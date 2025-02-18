@@ -38,7 +38,7 @@ import java.util.stream.IntStream;
 
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
-public class MatrixMultiplication {
+public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
 
     // Change this value to adapt the matrix size (size x size)
     final static int SIZE = 1024;
@@ -579,8 +579,8 @@ public class MatrixMultiplication {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException, RunnerException {
-
+    @Override
+    public void run(String[] args) {
         System.out.println("[INFO] Matrix Multiplication");
         final int size = SIZE;
         System.out.println("[INFO] MxM size: " + size + "x" + size);
@@ -589,14 +589,27 @@ public class MatrixMultiplication {
         if (args.length > 0) {
             switch (args[0]) {
                 case "jmh" -> {
-                    runWithJMH();
-                    return;
+                    try {
+                        runWithJMH();
+                        return;
+                    } catch (Exception e) {
+                        System.err.println("An error occurred: " + e.getMessage());
+                    }
                 }
                 case "onlyJavaSeq" -> option = Option.JAVA_SEQ_ONLY;
                 case "onlyJava" -> option = Option.JAVA_ONLY;
                 case "onlyTornadoVM" -> option = Option.TORNADO_ONLY;
             }
         }
-        runTestAll(size, option);
+        try {
+            MatrixMultiplication.runTestAll(size, option);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void main(String[] args) {
+        MatrixMultiplication benchmark = new MatrixMultiplication();
+        benchmark.run(args);
     }
 }

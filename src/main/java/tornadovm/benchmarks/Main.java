@@ -25,15 +25,17 @@ public class Main {
             switch (benchmarkName) {
                 case "mxm" -> benchmark = new MatrixMultiplication();
                 case "dft" -> benchmark = new DFT();
+                case "montecarlo" -> benchmark = new Montecarlo();
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
             benchmark.run(arguments);
         } else {
             System.out.println("[TornadoVM Benchmarks] Running all benchmarks...");
 
-            TornadoBenchmark[] benchmarks = new TornadoBenchmark[2];
+            TornadoBenchmark[] benchmarks = new TornadoBenchmark[3];
             benchmarks[0] = new MatrixMultiplication();
             benchmarks[1] = new DFT();
+            benchmarks[2] = new Montecarlo();
 
             Arrays.stream(benchmarks).forEach(benchmark -> benchmark.run(args));
         }

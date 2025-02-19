@@ -431,8 +431,6 @@ public class MatrixMultiplication implements TornadoBenchmark {
         matrixA.initRandom();
         matrixB.initRandom();
 
-        final int RUNS = 10;
-
         // 6 implementations to compare
         ArrayList<ArrayList<Long>> timers = IntStream.range(0, 6) //
                 .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
@@ -440,7 +438,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
 
 
         // 1. Sequential
-        for (int i = 0; i < RUNS; i++) {
+        for (int i = 0; i < Config.RUNS; i++) {
             long start = System.nanoTime();
             Multiplication.mxmSequential(matrixA, matrixB, outputReference);
             long end = System.nanoTime();
@@ -462,7 +460,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
 
         if (option == Option.ALL || option == Option.JAVA_ONLY) {
             // 2. Parallel Streams
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 Multiplication.mxmParallelStreams(matrixA, matrixB, matrixD);
                 long end = System.nanoTime();
@@ -478,7 +476,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
             }
 
             // 3. Parallel with Java Threads
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 Multiplication.mxmParallelThreads(matrixA, matrixB, matrixE);
                 long end = System.nanoTime();
@@ -495,7 +493,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
 
             // 4. Sequential Using the Vector API
             FloatMatrix bTranspose = Multiplication.transposeMatrix(matrixB);
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 Multiplication.mxmSequentialVectorized(matrixA, bTranspose, matrixF);
                 long end = System.nanoTime();
@@ -511,7 +509,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
             }
 
             // 5. Parallel Streams using the Vector API
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 Multiplication.mxmParallelVectorized(matrixA, bTranspose, matrixG);
                 long end = System.nanoTime();
@@ -535,7 +533,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
             TornadoExecutionPlan executionPlan = Multiplication.createTornadoVMPlan(tma, tmb, resultTornadoVM);
 
             // 6. On the GPU using TornadoVM
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 executionPlan.execute();
                 long end = System.nanoTime();
@@ -551,22 +549,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
             }
         }
         if (option == Option.ALL) {
-            // Print CSV table with RAW elapsed timers
-            try (FileWriter fileWriter = new FileWriter("mxm-performanceTable.csv")) {
-                // Write header
-                fileWriter.write("sequential,streams,threads,vectorSingle,vectorParallel,TornadoVM\n");
-                // Write data
-                for (int i = 0; i < RUNS; i++) {
-                    StringBuilder builder = new StringBuilder();
-                    for (int j = 0; j < 6; j++) {
-                        builder.append(timers.get(j).get(i) + ",");
-                    }
-                    fileWriter.write(builder.substring(0, builder.length() - 1));
-                    fileWriter.write("\n");
-                }
-            } catch (IOException e) {
-                System.err.println("An error occurred: " + e.getMessage());
-            }
+            Utils.dumpPerformanceTable(timers, 6, "mxm");
         }
     }
 

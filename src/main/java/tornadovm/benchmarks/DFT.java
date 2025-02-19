@@ -26,8 +26,6 @@ import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
-import java.io.FileWriter;
-import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Random;
@@ -38,7 +36,6 @@ import java.util.stream.IntStream;
 public class DFT implements TornadoBenchmark {
 
     final static int SIZE = 8192;
-    final int RUNS = 10;
 
     public static void computeSequential(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
         int n = inreal.getSize();
@@ -301,7 +298,7 @@ public class DFT implements TornadoBenchmark {
                 .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        for (int i = 0; i < RUNS; i++) {
+        for (int i = 0; i < Config.RUNS; i++) {
             long start = System.nanoTime();
             computeSequential(inReal, inImag, outRealSeq, outImagSeq);
             long end = System.nanoTime();
@@ -321,7 +318,7 @@ public class DFT implements TornadoBenchmark {
             // 2. Parallel Streams
             FloatArray outRealStream = new FloatArray(size);
             FloatArray outImagStream = new FloatArray(size);
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 computeWithJavaStreams(inReal, inImag, outRealStream, outImagStream);
                 long end = System.nanoTime();
@@ -336,7 +333,7 @@ public class DFT implements TornadoBenchmark {
             // 3. Parallel with Java Threads
             FloatArray outRealThreads = new FloatArray(size);
             FloatArray outImagThreads = new FloatArray(size);
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 computeWithJavaThreads(inReal, inImag, outRealThreads, outImagThreads);
                 long end = System.nanoTime();
@@ -351,7 +348,7 @@ public class DFT implements TornadoBenchmark {
             // 4. Parallel with Java Vector API
             FloatArray outRealVector = new FloatArray(size);
             FloatArray outImagVector = new FloatArray(size);
-            for (int i = 0; i < RUNS; i++) {
+            for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 computeWithParallelVectorAPI(inReal, inImag, outRealVector, outImagVector);
                 long end = System.nanoTime();
@@ -377,7 +374,7 @@ public class DFT implements TornadoBenchmark {
             try (TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
 
                 // 5. On the GPU using TornadoVM
-                for (int i = 0; i < RUNS; i++) {
+                for (int i = 0; i < Config.RUNS; i++) {
                     long start = System.nanoTime();
                     executionPlan.execute();
                     long end = System.nanoTime();
@@ -394,22 +391,7 @@ public class DFT implements TornadoBenchmark {
         }
 
         if (option == Option.ALL) {
-            // Print CSV table with RAW elapsed timers
-            try (FileWriter fileWriter = new FileWriter("dft-performanceTable.csv")) {
-                // Write header
-                fileWriter.write("sequential,streams,threads,TornadoVM\n");
-                // Write data
-                for (int i = 0; i < RUNS; i++) {
-                    StringBuilder builder = new StringBuilder();
-                    for (int j = 0; j < implementationsToCompare; j++) {
-                        builder.append(timers.get(j).get(i)).append(",");
-                    }
-                    fileWriter.write(builder.substring(0, builder.length() - 1));
-                    fileWriter.write("\n");
-                }
-            } catch (IOException e) {
-                System.err.println("An error occurred: " + e.getMessage());
-            }
+            Utils.dumpPerformanceTable(timers, implementationsToCompare, "dft");
         }
 
     }

@@ -18,7 +18,7 @@ package tornadovm.benchmarks;
 
 public class Config {
 
-    public static int RUNS = 10;
+    public static int RUNS = 100;
 
     public static boolean DEBUG = false;
 

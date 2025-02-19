@@ -1,5 +1,5 @@
 package tornadovm.benchmarks;
 
-public interface Benchmark {
+public interface TornadoBenchmark {
     void run(String[] args);
 }

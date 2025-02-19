@@ -12,6 +12,30 @@ package tornadovm.benchmarks;
 public class Main {
 
     public static void main(String[] args) {
-        System.out.println("Hello World!");
+
+        if (args.length > 0) {
+            TornadoBenchmark benchmark;
+            String benchmarkName = args[0];
+
+            // remove element 0 from the list
+            String[] arguments = new String[args.length - 1];
+            System.arraycopy(args, 1, arguments, 0, arguments.length);
+            switch (benchmarkName) {
+                case "mxm" -> benchmark = new MatrixMultiplication();
+                case "dft" -> benchmark = new DFT();
+                default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
+            }
+            benchmark.run(arguments);
+        } else {
+            System.out.println("[TornadoVM Benchmarks] Running all benchmarks...");
+
+            TornadoBenchmark[] benchmarks = new TornadoBenchmark[2];
+            benchmarks[0] = new MatrixMultiplication();
+            benchmarks[1] = new DFT();
+
+            for (TornadoBenchmark benchmark : benchmarks) {
+                benchmark.run(args);
+            }
+        }
     }
 }

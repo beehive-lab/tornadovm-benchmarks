@@ -38,7 +38,7 @@ import java.util.stream.IntStream;
 
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
-public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
+public class MatrixMultiplication implements TornadoBenchmark {
 
     // Change this value to adapt the matrix size (size x size)
     final static int SIZE = 1024;
@@ -46,12 +46,6 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
     private final static double FLOP = 2 * Math.pow(SIZE, 3);
     private final static float TIME_SCALE_SECS = 1.0E09f;
 
-    private enum Option {
-        JAVA_SEQ_ONLY,
-        JAVA_ONLY,
-        TORNADO_ONLY,
-        ALL;
-    }
 
     /**
      * Float MxN Matrix
@@ -132,9 +126,6 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
             }));
         }
 
-        private record Range(int min, int max) {
-        }
-
         public static void mxmParallelThreads(FloatMatrix a, FloatMatrix b, FloatMatrix c) throws InterruptedException {
 
             int maxProcessors = Runtime.getRuntime().availableProcessors();
@@ -162,14 +153,14 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
 
             if (DEBUG) {
                 Arrays.stream(ranges).forEach(r -> {
-                    System.out.println(r + " -- " + (r.max - r.min));
+                    System.out.println(r + " -- " + (r.max() - r.min()));
                 });
             }
 
             Thread[] threads = new Thread[maxProcessors];
             IntStream.range(0, threads.length).forEach(t -> {
                 threads[t] = new Thread(() -> {
-                    for (int i = ranges[t].min; i < ranges[t].max; i++) {
+                    for (int i = ranges[t].min(); i < ranges[t].max(); i++) {
                         for (int j = 0; j < b.N(); j++) {
                             float acc = 0;
                             for (int k = 0; k < c.M(); k++) {
@@ -306,7 +297,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
     }
 
     @State(Scope.Thread)
-    public static class Benchmarking {
+    public static class JMHBenchmark {
 
         MatrixMultiplication matrixMultiplication;
 
@@ -355,7 +346,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mxmSequential(Benchmarking state) {
+        public void mxmSequential(JMHBenchmark state) {
             MatrixMultiplication.Multiplication.mxmSequential(state.matrixA, state.matrixB, state.matrixC);
         }
 
@@ -365,7 +356,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mxmParallelStreams(Benchmarking state) {
+        public void mxmParallelStreams(JMHBenchmark state) {
             MatrixMultiplication.Multiplication.mxmParallelStreams(state.matrixA, state.matrixB, state.matrixD);
         }
 
@@ -375,7 +366,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mxmParallelThreads(Benchmarking state) throws InterruptedException {
+        public void mxmParallelThreads(JMHBenchmark state) throws InterruptedException {
             MatrixMultiplication.Multiplication.mxmParallelThreads(state.matrixA, state.matrixB, state.matrixE);
         }
 
@@ -385,7 +376,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mxmSequentialVectorized(Benchmarking state) {
+        public void mxmSequentialVectorized(JMHBenchmark state) {
             MatrixMultiplication.Multiplication.mxmSequentialVectorized(state.matrixA, state.matrixB, state.matrixF);
         }
 
@@ -395,7 +386,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mxmParallelVectorized(Benchmarking state) {
+        public void mxmParallelVectorized(JMHBenchmark state) {
             MatrixMultiplication.Multiplication.mxmParallelVectorized(state.matrixA, state.matrixB, state.matrixG);
         }
 
@@ -405,7 +396,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mxmTornadoVM(Benchmarking state) {
+        public void mxmTornadoVM(JMHBenchmark state) {
             state.executionPlan.execute();
         }
     }
@@ -561,7 +552,7 @@ public class MatrixMultiplication implements tornadovm.benchmarks.Benchmark {
         }
         if (option == Option.ALL) {
             // Print CSV table with RAW elapsed timers
-            try (FileWriter fileWriter = new FileWriter("performanceTable.csv")) {
+            try (FileWriter fileWriter = new FileWriter("mxm-performanceTable.csv")) {
                 // Write header
                 fileWriter.write("sequential,streams,threads,vectorSingle,vectorParallel,TornadoVM\n");
                 // Write data

@@ -109,14 +109,12 @@ public class DFT implements TornadoBenchmark {
                     sinAngles[i] = (float) Math.sin(angles[i]);
                 }
 
-                FloatVector vInReal = FloatVector.fromMemorySegment(species, inreal.getSegment(), k * FLOAT_BYTES, ByteOrder.nativeOrder());
-                FloatVector vInImag = FloatVector.fromMemorySegment(species, inimag.getSegment(), k * FLOAT_BYTES, ByteOrder.nativeOrder());
+                FloatVector vInReal = FloatVector.fromMemorySegment(species, inreal.getSegment(), t * FLOAT_BYTES, ByteOrder.nativeOrder());
+                FloatVector vInImag = FloatVector.fromMemorySegment(species, inimag.getSegment(), t * FLOAT_BYTES, ByteOrder.nativeOrder());
 
                 sumreal += vInReal.mul(FloatVector.fromArray(species, cosAngles, 0)).add(vInImag.mul(FloatVector.fromArray(species, sinAngles, 0))).reduceLanes(VectorOperators.ADD);
-                sumimag += vInReal.mul(FloatVector.fromArray(species, sinAngles, 0)).add(vInImag.mul(FloatVector.fromArray(species, cosAngles, 0))).reduceLanes(VectorOperators.ADD);
+                sumimag += -1 * vInReal.mul(FloatVector.fromArray(species, sinAngles, 0)).add(vInImag.mul(FloatVector.fromArray(species, cosAngles, 0))).reduceLanes(VectorOperators.ADD);
 
-//                sumreal += (inreal.get(t) * (TornadoMath.cos(angle)) + inimag.get(t) * (TornadoMath.sin(angle)));
-//                sumimag += -(inreal.get(t) * (TornadoMath.sin(angle)) + inimag.get(t) * (TornadoMath.cos(angle)));
             }
             outreal.set(k, sumreal);
             outimag.set(k, sumimag);
@@ -162,13 +160,13 @@ public class DFT implements TornadoBenchmark {
     public boolean validate(int size, FloatArray outRealSeq, FloatArray outImagSeq, FloatArray outReal, FloatArray outImag) {
         boolean val = true;
         for (int i = 0; i < size; i++) {
-            if (Math.abs(outImagSeq.get(i) - outImag.get(i)) > 0.1) {
-                System.out.println(outImagSeq.get(i) + " vs " + outImag.get(i) + "\n");
+            if (Math.abs(outRealSeq.get(i) - outReal.get(i)) > 0.1) {
+                System.out.println(outReal.get(i) + " vs " + outRealSeq.get(i) + "\n");
                 val = false;
                 break;
             }
-            if (Math.abs(outReal.get(i) - outRealSeq.get(i)) > 0.1) {
-                System.out.println(outReal.get(i) + " vs " + outRealSeq.get(i) + "\n");
+            if (Math.abs(outImagSeq.get(i) - outImag.get(i)) > 0.1) {
+                System.out.println(outImagSeq.get(i) + " vs " + outImag.get(i) + "\n");
                 val = false;
                 break;
             }
@@ -179,16 +177,14 @@ public class DFT implements TornadoBenchmark {
     @State(Scope.Thread)
     public static class JMHBenchmark {
 
-        DFT dft;
+        private DFT dft;
 
-        FloatArray inReal;
-        FloatArray inImag;
-        FloatArray outRealSeq;
-        FloatArray outImagSeq;
+        private FloatArray inReal;
+        private FloatArray inImag;
+        private FloatArray outReal;
+        private FloatArray outImag;
 
-        FloatArray outRealTornado;
-        FloatArray outImagTornado;
-        TornadoExecutionPlan executionPlan;
+        private TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
         public void doSetup() {
@@ -197,8 +193,8 @@ public class DFT implements TornadoBenchmark {
 
             inReal = new FloatArray(size);
             inImag = new FloatArray(size);
-            outRealSeq = new FloatArray(size);
-            outImagSeq = new FloatArray(size);
+            outReal = new FloatArray(size);
+            outImag = new FloatArray(size);
 
             for (int i = 0; i < size; i++) {
                 inReal.set(i, 1 / (float) (i + 2));
@@ -222,7 +218,7 @@ public class DFT implements TornadoBenchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void dftSequential(JMHBenchmark state) {
-            computeSequential(state.inReal, state.inImag, state.outRealSeq, state.outImagSeq);
+            computeSequential(state.inReal, state.inImag, state.outReal, state.outImag);
         }
 
         @Benchmark
@@ -232,7 +228,7 @@ public class DFT implements TornadoBenchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void dftParallelStreams(JMHBenchmark state) {
-            state.dft.computeWithJavaStreams(state.inReal, state.inImag, state.outRealSeq, state.outImagSeq);
+            state.dft.computeWithJavaStreams(state.inReal, state.inImag, state.outReal, state.outImag);
         }
 
         @Benchmark
@@ -243,7 +239,7 @@ public class DFT implements TornadoBenchmark {
         @Fork(1)
         public void dftParallelThreads(JMHBenchmark state) {
             try {
-                state.dft.computeWithJavaThreads(state.inReal, state.inImag, state.outRealSeq, state.outImagSeq);
+                state.dft.computeWithJavaThreads(state.inReal, state.inImag, state.outReal, state.outImag);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -256,7 +252,7 @@ public class DFT implements TornadoBenchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void dftParallelVectorAPI(JMHBenchmark state) {
-            state.dft.computeWithParallelVectorAPI(state.inReal, state.inImag, state.outRealSeq, state.outImagSeq);
+            state.dft.computeWithParallelVectorAPI(state.inReal, state.inImag, state.outReal, state.outImag);
         }
 
         @Benchmark
@@ -297,7 +293,7 @@ public class DFT implements TornadoBenchmark {
         }
 
         // 5 implementations to compare
-        final int implementationsToCompare = 4;
+        final int implementationsToCompare = 5;
         ArrayList<ArrayList<Long>> timers = IntStream.range(0, implementationsToCompare) //
                 .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -357,7 +353,7 @@ public class DFT implements TornadoBenchmark {
                 computeWithParallelVectorAPI(inReal, inImag, outRealVector, outImagVector);
                 long end = System.nanoTime();
                 long elapsedTime = (end - start);
-                timers.get(2).add(elapsedTime);
+                timers.get(3).add(elapsedTime);
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
@@ -383,7 +379,7 @@ public class DFT implements TornadoBenchmark {
                     executionPlan.execute();
                     long end = System.nanoTime();
                     long elapsedTime = (end - start);
-                    timers.get(3).add(elapsedTime);
+                    timers.get(4).add(elapsedTime);
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");

@@ -1,3 +1,47 @@
 # TornadoVM Benchmarks 
 
 
+## How to build?
+
+
+```bash
+./build.sh
+```
+
+Then install TornadoVM in a separated directory:
+
+```bash
+git clone https://github.com/beehive-lab/TornadoVM
+cd tornadovm 
+./bin/tornadovm-installer --backend=opencl --jdk jdk21 
+cp setvars.sh .. 
+cd ..
+```
+
+## How to run? 
+
+Setup the environment:
+
+```bash
+source setvars.sh
+```
+
+### Run Individual benchamrk:
+
+```bash
+./run.sh mxm
+
+./run.sh mxv
+
+./run.sh mandelbrot
+
+./run.sh mandelbrot
+
+./run.sh dft
+```
+
+## Run all:
+
+```bash
+./run.sh 
+```

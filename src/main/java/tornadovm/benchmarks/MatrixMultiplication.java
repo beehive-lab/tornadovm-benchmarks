@@ -129,33 +129,7 @@ public class MatrixMultiplication implements TornadoBenchmark {
         public static void mxmParallelThreads(FloatMatrix a, FloatMatrix b, FloatMatrix c) throws InterruptedException {
 
             int maxProcessors = Runtime.getRuntime().availableProcessors();
-            // Assuming square-matrices
-            int size = a.M();
-            int chunk = size / maxProcessors;
-            int rest = size % maxProcessors;
-
-            Range[] ranges = new Range[maxProcessors];
-            for (int i = 0; i < ranges.length; i++) {
-                int min = i * chunk;
-                int max = i * chunk + chunk;
-
-                // Adjust load
-                if (rest > i) {
-                    max += i + 1;
-                    min += i;
-                } else if (rest != 0) {
-                    min += rest;
-                    max += rest;
-                }
-
-                ranges[i] = new Range(min, max);
-            }
-
-            if (DEBUG) {
-                Arrays.stream(ranges).forEach(r -> {
-                    System.out.println(r + " -- " + (r.max() - r.min()));
-                });
-            }
+            Range[] ranges = Utils.createRangesForCPU(a.M());
 
             Thread[] threads = new Thread[maxProcessors];
             IntStream.range(0, threads.length).forEach(t -> {

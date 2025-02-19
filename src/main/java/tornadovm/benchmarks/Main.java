@@ -1,5 +1,7 @@
 package tornadovm.benchmarks;
 
+import java.util.Arrays;
+
 /**
  * How to run?
  *
@@ -33,9 +35,7 @@ public class Main {
             benchmarks[0] = new MatrixMultiplication();
             benchmarks[1] = new DFT();
 
-            for (TornadoBenchmark benchmark : benchmarks) {
-                benchmark.run(args);
-            }
+            Arrays.stream(benchmarks).forEach(benchmark -> benchmark.run(args));
         }
     }
 }

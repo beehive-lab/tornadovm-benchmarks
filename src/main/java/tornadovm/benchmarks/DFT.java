@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class DFT implements TornadoBenchmark {
+public class DFT extends TornadoBenchmark {
 
     final static int SIZE = 8192;
 
@@ -265,7 +265,13 @@ public class DFT implements TornadoBenchmark {
         }
     }
 
-    private static void runWithJMH() throws RunnerException {
+    @Override
+    int getSize() {
+        return SIZE;
+    }
+
+    @Override
+    void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(DFT.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -279,7 +285,8 @@ public class DFT implements TornadoBenchmark {
         new Runner(opt).run();
     }
 
-    private void runTestAll(final int size, Option option) throws InterruptedException {
+    @Override
+    void runTestAll(final int size, Option option) throws InterruptedException {
 
         FloatArray inReal = new FloatArray(size);
         FloatArray inImag = new FloatArray(size);
@@ -393,39 +400,19 @@ public class DFT implements TornadoBenchmark {
         if (option == Option.ALL) {
             Utils.dumpPerformanceTable(timers, implementationsToCompare, "dft");
         }
-
     }
 
     @Override
-    public void run(String[] args) {
-        System.out.println("[INFO] DFT");
-        final int size = SIZE;
-        System.out.println("[INFO] DFT size: " + size);
-
-        Option option = Option.ALL;
-        if (args.length > 0) {
-            switch (args[0]) {
-                case "jmh" -> {
-                    try {
-                        runWithJMH();
-                        return;
-                    } catch (Exception e) {
-                        System.err.println("An error occurred: " + e.getMessage());
-                    }
-                }
-                case "onlyJavaSeq" -> option = Option.JAVA_SEQ_ONLY;
-                case "onlyJava" -> option = Option.JAVA_ONLY;
-                case "onlyTornadoVM" -> option = Option.TORNADO_ONLY;
-            }
-        }
-        try {
-            runTestAll(size, option);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+    String getName() {
+        return "DFT";
     }
 
-    public static void main(String[] args) {
+    @Override
+    String printSize() {
+        return "" + getSize();
+    }
+
+    public static void main(String[] args) throws InterruptedException {
         DFT benchmark = new DFT();
         benchmark.run(args);
     }

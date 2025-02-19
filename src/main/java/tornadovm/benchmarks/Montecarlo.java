@@ -39,7 +39,7 @@ import java.util.stream.IntStream;
  *     </code>
  * </p>
  */
-public class Montecarlo implements TornadoBenchmark {
+public class Montecarlo extends TornadoBenchmark {
 
     static final int SIZE = 16777216 * 8;
 
@@ -275,7 +275,13 @@ public class Montecarlo implements TornadoBenchmark {
         }
     }
 
-    private static void runWithJMH() throws RunnerException {
+    @Override
+    int getSize() {
+        return SIZE;
+    }
+
+    @Override
+    void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(Montecarlo.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -289,7 +295,8 @@ public class Montecarlo implements TornadoBenchmark {
         new Runner(opt).run();
     }
 
-    private void runTestAll(final int size, Option option) throws InterruptedException {
+    @Override
+    void runTestAll(final int size, Option option) throws InterruptedException {
 
         FloatArray outputSeq = new FloatArray(size);
         FloatArray outputStream = new FloatArray(size);
@@ -391,35 +398,16 @@ public class Montecarlo implements TornadoBenchmark {
     }
 
     @Override
-    public void run(String[] args) {
-        System.out.println("[INFO] Montecarlo");
-        final int size = SIZE;
-        System.out.println("[INFO] Montecarlo size: " + size);
-
-        Option option = Option.ALL;
-        if (args.length > 0) {
-            switch (args[0]) {
-                case "jmh" -> {
-                    try {
-                        runWithJMH();
-                        return;
-                    } catch (Exception e) {
-                        System.err.println("An error occurred: " + e.getMessage());
-                    }
-                }
-                case "onlyJavaSeq" -> option = Option.JAVA_SEQ_ONLY;
-                case "onlyJava" -> option = Option.JAVA_ONLY;
-                case "onlyTornadoVM" -> option = Option.TORNADO_ONLY;
-            }
-        }
-        try {
-            runTestAll(size, option);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+    String getName() {
+        return "Montecarlo";
     }
 
-    public static void main(String[] args) {
+    @Override
+    String printSize() {
+        return "" + getSize();
+    }
+
+    public static void main(String[] args) throws InterruptedException {
         Montecarlo benchmark = new Montecarlo();
         benchmark.run(args);
     }

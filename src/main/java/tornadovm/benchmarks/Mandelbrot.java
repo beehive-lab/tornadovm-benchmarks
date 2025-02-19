@@ -32,7 +32,7 @@ import java.util.stream.IntStream;
  *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.Mandelbrot
  * </code>
  */
-public class Mandelbrot implements TornadoBenchmark {
+public class Mandelbrot extends TornadoBenchmark {
     
     static final int SIZE = 512;
     static final int ITERATIONS = 10000;
@@ -275,7 +275,13 @@ public class Mandelbrot implements TornadoBenchmark {
         }
     }
 
-    private static void runWithJMH() throws RunnerException {
+    @Override
+    int getSize() {
+        return SIZE;
+    }
+
+    @Override
+    void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(Mandelbrot.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -289,7 +295,8 @@ public class Mandelbrot implements TornadoBenchmark {
         new Runner(opt).run();
     }
 
-    private void runTestAll(final int size, Option option) throws InterruptedException {
+    @Override
+    void runTestAll(final int size, Option option) throws InterruptedException {
 
         ShortArray outputSeq = new ShortArray(size * size);
         ShortArray outputStream = new ShortArray(size * size);
@@ -389,35 +396,16 @@ public class Mandelbrot implements TornadoBenchmark {
     }
 
     @Override
-    public void run(String[] args) {
-        System.out.println("[INFO] Mandelbrot");
-        final int size = SIZE;
-        System.out.println("[INFO] Mandelbrot size: " + size + "x" + size);
-
-        Option option = Option.ALL;
-        if (args.length > 0) {
-            switch (args[0]) {
-                case "jmh" -> {
-                    try {
-                        runWithJMH();
-                        return;
-                    } catch (Exception e) {
-                        System.err.println("An error occurred: " + e.getMessage());
-                    }
-                }
-                case "onlyJavaSeq" -> option = Option.JAVA_SEQ_ONLY;
-                case "onlyJava" -> option = Option.JAVA_ONLY;
-                case "onlyTornadoVM" -> option = Option.TORNADO_ONLY;
-            }
-        }
-        try {
-            runTestAll(size, option);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+    String getName() {
+        return "Mandelbrot";
     }
 
-    public static void main(String[] args) {
+    @Override
+    String printSize() {
+        return getSize() + "x" + getSize();
+    }
+
+    public static void main(String[] args) throws InterruptedException {
         Mandelbrot benchmark = new Mandelbrot();
         benchmark.run(args);
     }

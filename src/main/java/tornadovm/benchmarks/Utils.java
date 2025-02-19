@@ -16,6 +16,7 @@
  */
 package tornadovm.benchmarks;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,8 +55,15 @@ public class Utils {
     }
 
     public static void dumpPerformanceTable(ArrayList<ArrayList<Long>> timers, int implementationsToCompare, String benchmarkName) {
+
+        // Create results directory
+        File resultDirectory = new File("./results/");
+        if (!resultDirectory.exists()) {
+            resultDirectory.mkdirs();
+        }
+
         // Print CSV table with RAW elapsed timers
-        try (FileWriter fileWriter = new FileWriter(benchmarkName + "-performanceTable.csv")) {
+        try (FileWriter fileWriter = new FileWriter("results/" + benchmarkName + "-performanceTable.csv")) {
             // Write header
             fileWriter.write("sequential,streams,threads,vectorAPI,TornadoVM\n");
             // Write data

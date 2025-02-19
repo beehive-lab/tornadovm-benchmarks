@@ -184,32 +184,7 @@ public class Mandelbrot extends TornadoBenchmark {
 
     // TODO: Implement with Vector API
     private void computeWithParallelVectorAPI(int size, ShortArray output) {
-        final int iterations = ITERATIONS;
-        float space = 2.0f / size;
-        IntStream.range(0, size).parallel().forEach(i -> {
-            IntStream.range(0, size).parallel().forEach(j -> {
-                float Zr = 0.0f;
-                float Zi = 0.0f;
-                float Cr = (1 * j * space - 1.5f);
-                float Ci = (1 * i * space - 1.0f);
-                float ZrN = 0;
-                float ZiN = 0;
-                int y = 0;
-                for (int ii = 0; ii < iterations; ii++) {
-                    if (ZiN + ZrN <= 4.0f) {
-                        Zi = 2.0f * Zr * Zi + Ci;
-                        Zr = 1 * ZrN - ZiN + Cr;
-                        ZiN = Zi * Zi;
-                        ZrN = Zr * Zr;
-                        y++;
-                    } else {
-                        ii = iterations;
-                    }
-                }
-                short r = (short) ((y * 255) / iterations);
-                output.set(i * size + j, r);
-            });
-        });
+        throw new RuntimeException("Not implemented yet");
     }
 
     private boolean validate(ShortArray outputRef, ShortArray output, int size) {
@@ -372,7 +347,11 @@ public class Mandelbrot extends TornadoBenchmark {
             // 4. Parallel with Java Vector API
             for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
-                computeWithParallelVectorAPI(SIZE, outputVector);
+                try {
+                    computeWithParallelVectorAPI(SIZE, outputVector);
+                } catch (RuntimeException e) {
+                    System.out.println("Error" + e.getMessage());
+                }
                 long end = System.nanoTime();
                 long elapsedTime = (end - start);
                 timers.get(3).add(elapsedTime);

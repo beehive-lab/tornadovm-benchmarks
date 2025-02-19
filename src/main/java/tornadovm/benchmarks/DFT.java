@@ -263,7 +263,7 @@ public class DFT implements TornadoBenchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void dftTornadoVM(MatrixMultiplication.JMHBenchmark state) {
+        public void dftTornadoVM(JMHBenchmark state) {
             state.executionPlan.execute();
         }
     }

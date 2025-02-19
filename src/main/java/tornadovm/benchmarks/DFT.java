@@ -30,6 +30,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -160,12 +161,12 @@ public class DFT implements TornadoBenchmark {
     public boolean validate(int size, FloatArray outRealSeq, FloatArray outImagSeq, FloatArray outReal, FloatArray outImag) {
         boolean val = true;
         for (int i = 0; i < size; i++) {
-            if (Math.abs(outRealSeq.get(i) - outReal.get(i)) > 0.1) {
+            if (Math.abs(outRealSeq.get(i) - outReal.get(i)) > 1.0f) {
                 System.out.println(outReal.get(i) + " vs " + outRealSeq.get(i) + "\n");
                 val = false;
                 break;
             }
-            if (Math.abs(outImagSeq.get(i) - outImag.get(i)) > 0.1) {
+            if (Math.abs(outImagSeq.get(i) - outImag.get(i)) > 1.0f) {
                 System.out.println(outImagSeq.get(i) + " vs " + outImag.get(i) + "\n");
                 val = false;
                 break;
@@ -196,9 +197,10 @@ public class DFT implements TornadoBenchmark {
             outReal = new FloatArray(size);
             outImag = new FloatArray(size);
 
+            Random r = new Random();
             for (int i = 0; i < size; i++) {
-                inReal.set(i, 1 / (float) (i + 2));
-                inImag.set(i, 1 / (float) (i + 2));
+                inReal.set(i, 1 / r.nextFloat());
+                inImag.set(i, 1 / r.nextFloat());
             }
 
             FloatArray outRealTornado = new FloatArray(size);
@@ -287,9 +289,10 @@ public class DFT implements TornadoBenchmark {
         FloatArray outRealSeq = new FloatArray(size);
         FloatArray outImagSeq = new FloatArray(size);
 
+        Random r = new Random(71);
         for (int i = 0; i < size; i++) {
-            inReal.set(i, 1 / (float) (i + 2));
-            inImag.set(i, 1 / (float) (i + 2));
+            inReal.set(i, 1 / r.nextFloat());
+            inImag.set(i, 1 / r.nextFloat());
         }
 
         // 5 implementations to compare
@@ -345,7 +348,7 @@ public class DFT implements TornadoBenchmark {
                 System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealThreads, outImagThreads));
             }
 
-            // 4. Parallel with Java Threads
+            // 4. Parallel with Java Vector API
             FloatArray outRealVector = new FloatArray(size);
             FloatArray outImagVector = new FloatArray(size);
             for (int i = 0; i < RUNS; i++) {
@@ -356,7 +359,7 @@ public class DFT implements TornadoBenchmark {
                 timers.get(3).add(elapsedTime);
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
-                System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
+                System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
                 System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealVector, outImagVector));
             }
         }

@@ -1,5 +1,8 @@
 package tornadovm.benchmarks;
 
+import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorOperators;
+import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -25,6 +28,7 @@ import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -74,6 +78,45 @@ public class DFT implements TornadoBenchmark {
                 float angle = ((2 * TornadoMath.floatPI() * t * k) / n);
                 sumreal += (inreal.get(t) * (TornadoMath.cos(angle)) + inimag.get(t) * (TornadoMath.sin(angle)));
                 sumimag += -(inreal.get(t) * (TornadoMath.sin(angle)) + inimag.get(t) * (TornadoMath.cos(angle)));
+            }
+            outreal.set(k, sumreal);
+            outimag.set(k, sumimag);
+        });
+    }
+
+    public void computeWithParallelVectorAPI(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
+        VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
+        final int FLOAT_BYTES = 4;
+        int n = inreal.getSize();
+        IntStream.range(0, n).parallel().forEach(k -> {
+            float sumreal = 0;
+            float sumimag = 0;
+            for (int t = 0; t < n; t += species.length()) { // For each input element
+
+                float[] angles = new float[species.length()];
+                int tIndex = t;
+                for (int i = 0; i < angles.length; i++) {
+                    angles[i] = ((2 * TornadoMath.floatPI() * tIndex * k) / n);
+                    tIndex++;
+                }
+                float[] cosAngles = new float[species.length()];
+                for (int i = 0; i < cosAngles.length; i++) {
+                    cosAngles[i] = (float) Math.cos(angles[i]);
+                }
+
+                float[] sinAngles = new float[species.length()];
+                for (int i = 0; i < sinAngles.length; i++) {
+                    sinAngles[i] = (float) Math.sin(angles[i]);
+                }
+
+                FloatVector vInReal = FloatVector.fromMemorySegment(species, inreal.getSegment(), k * FLOAT_BYTES, ByteOrder.nativeOrder());
+                FloatVector vInImag = FloatVector.fromMemorySegment(species, inimag.getSegment(), k * FLOAT_BYTES, ByteOrder.nativeOrder());
+
+                sumreal += vInReal.mul(FloatVector.fromArray(species, cosAngles, 0)).add(vInImag.mul(FloatVector.fromArray(species, sinAngles, 0))).reduceLanes(VectorOperators.ADD);
+                sumimag += vInReal.mul(FloatVector.fromArray(species, sinAngles, 0)).add(vInImag.mul(FloatVector.fromArray(species, cosAngles, 0))).reduceLanes(VectorOperators.ADD);
+
+//                sumreal += (inreal.get(t) * (TornadoMath.cos(angle)) + inimag.get(t) * (TornadoMath.sin(angle)));
+//                sumimag += -(inreal.get(t) * (TornadoMath.sin(angle)) + inimag.get(t) * (TornadoMath.cos(angle)));
             }
             outreal.set(k, sumreal);
             outimag.set(k, sumimag);
@@ -212,6 +255,16 @@ public class DFT implements TornadoBenchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
+        public void dftParallelVectorAPI(JMHBenchmark state) {
+            state.dft.computeWithParallelVectorAPI(state.inReal, state.inImag, state.outRealSeq, state.outImagSeq);
+        }
+
+        @Benchmark
+        @BenchmarkMode(Mode.AverageTime)
+        @Warmup(iterations = 2, time = 60)
+        @Measurement(iterations = 5, time = 30)
+        @OutputTimeUnit(TimeUnit.NANOSECONDS)
+        @Fork(1)
         public void dftTornadoVM(MatrixMultiplication.JMHBenchmark state) {
             state.executionPlan.execute();
         }
@@ -294,6 +347,21 @@ public class DFT implements TornadoBenchmark {
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
                 System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealThreads, outImagThreads));
+            }
+
+            // 4. Parallel with Java Threads
+            FloatArray outRealVector = new FloatArray(size);
+            FloatArray outImagVector = new FloatArray(size);
+            for (int i = 0; i < RUNS; i++) {
+                long start = System.nanoTime();
+                computeWithParallelVectorAPI(inReal, inImag, outRealVector, outImagVector);
+                long end = System.nanoTime();
+                long elapsedTime = (end - start);
+                timers.get(2).add(elapsedTime);
+                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
+
+                System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
+                System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealVector, outImagVector));
             }
         }
 

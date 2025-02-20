@@ -45,3 +45,13 @@ source setvars.sh
 ```bash
 ./run.sh 
 ```
+
+
+## How to Change Device? 
+
+
+For example, device `0:2` for the benchmark `mxv`:
+
+```bash
+tornado --printKernel --jvm="-Dtornado.device.memory=2GB -Dbenchmark.mxv.device=0:2" -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.Main mxv
+```

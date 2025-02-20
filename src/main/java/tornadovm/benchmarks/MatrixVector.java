@@ -34,8 +34,12 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
+import uk.ac.manchester.tornado.api.WorkerGrid;
+import uk.ac.manchester.tornado.api.WorkerGrid1D;
+import uk.ac.manchester.tornado.api.WorkerGrid2D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
@@ -246,8 +250,12 @@ public class MatrixVector extends TornadoBenchmark {
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
             TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
             TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
+            WorkerGrid workerGrid = new WorkerGrid1D(a.getNumRows());
+            workerGrid.setLocalWork(16, 1, 1);
+            GridScheduler gridScheduler = new GridScheduler("benchmark.mxv", workerGrid);
             executionPlan //
                     .withDevice(device) //
+                    //.withGridScheduler(gridScheduler) //
                     .withWarmUp(); //
             return executionPlan;
         }

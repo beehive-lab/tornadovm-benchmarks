@@ -44,7 +44,6 @@ import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -210,10 +209,9 @@ public class DFT extends TornadoBenchmark {
             outReal = new FloatArray(size);
             outImag = new FloatArray(size);
 
-            Random r = new Random();
             for (int i = 0; i < size; i++) {
-                inReal.set(i, 1 / r.nextFloat());
-                inImag.set(i, 1 / r.nextFloat());
+                inReal.set(i, 1 / (float) (i + 2));
+                inImag.set(i, 1 / (float) (i + 2));
             }
 
             FloatArray outRealTornado = new FloatArray(size);
@@ -309,10 +307,9 @@ public class DFT extends TornadoBenchmark {
         FloatArray outRealSeq = new FloatArray(size);
         FloatArray outImagSeq = new FloatArray(size);
 
-        Random r = new Random(71);
         for (int i = 0; i < size; i++) {
-            inReal.set(i, 1 / r.nextFloat());
-            inImag.set(i, 1 / r.nextFloat());
+            inReal.set(i, 1 / (float) (i + 2));
+            inImag.set(i, 1 / (float) (i + 2));
         }
 
         // 5 implementations to compare

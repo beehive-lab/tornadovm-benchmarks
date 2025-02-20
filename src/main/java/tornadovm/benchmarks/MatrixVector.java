@@ -240,9 +240,9 @@ public class MatrixVector extends TornadoBenchmark {
         }
 
         private static TornadoExecutionPlan createTornadoVMPlan(Matrix2DFloat a, FloatArray b, FloatArray c) {
-            TaskGraph taskGraph = new TaskGraph("mxm");
+            TaskGraph taskGraph = new TaskGraph("benchmark");
             taskGraph.transferToDevice(DataTransferMode.FIRST_EXECUTION, a, b) //
-                    .task("mxm", Multiplication::mxvTornadoVM, a, b, c, a.getNumRows()) //
+                    .task("mxv", Multiplication::mxvTornadoVM, a, b, c, a.getNumRows()) //
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
             TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
             TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
@@ -509,7 +509,7 @@ public class MatrixVector extends TornadoBenchmark {
             }
         }
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, 6, "matrixVector");
+            Utils.dumpPerformanceTable(timers, 6, "matrixVector", Config.HEADER2);
         }
     }
 

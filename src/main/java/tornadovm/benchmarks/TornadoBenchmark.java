@@ -33,7 +33,7 @@ public abstract class TornadoBenchmark {
     public void run(String[] args) throws InterruptedException {
         System.out.println("[INFO] " + getName());
         final int size = getSize();
-        System.out.println("[INFO] Mandelbrot size: " + printSize());
+        System.out.println("[INFO] " +  getName() + " size: " + printSize());
 
         Option option = Option.ALL;
         if (args.length > 0) {

@@ -414,7 +414,7 @@ public class DFT extends TornadoBenchmark {
         }
 
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, implementationsToCompare, "dft");
+            Utils.dumpPerformanceTable(timers, implementationsToCompare, "dft", Config.HEADER1);
         }
     }
 

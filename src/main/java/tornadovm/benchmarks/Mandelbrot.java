@@ -389,7 +389,7 @@ public class Mandelbrot extends TornadoBenchmark {
         }
 
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, implementationsToCompare, "mandelbrot");
+            Utils.dumpPerformanceTable(timers, implementationsToCompare, "mandelbrot", Config.HEADER1);
         }
     }
 

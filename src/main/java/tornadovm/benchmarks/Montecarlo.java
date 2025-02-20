@@ -409,7 +409,7 @@ public class Montecarlo extends TornadoBenchmark {
         }
 
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, implementationsToCompare, "montecarlo");
+            Utils.dumpPerformanceTable(timers, implementationsToCompare, "montecarlo", Config.HEADER1);
         }
     }
 

@@ -54,7 +54,7 @@ public class Utils {
         return ranges;
     }
 
-    public static void dumpPerformanceTable(ArrayList<ArrayList<Long>> timers, int implementationsToCompare, String benchmarkName) {
+    public static void dumpPerformanceTable(ArrayList<ArrayList<Long>> timers, int implementationsToCompare, String benchmarkName, String header) {
 
         // Create results directory
         File resultDirectory = new File("./results/");
@@ -65,7 +65,7 @@ public class Utils {
         // Print CSV table with RAW elapsed timers
         try (FileWriter fileWriter = new FileWriter("results/" + benchmarkName + "-performanceTable.csv")) {
             // Write header
-            fileWriter.write("sequential,streams,threads,vectorAPI,TornadoVM\n");
+            fileWriter.write(header);
             // Write data
             for (int i = 0; i < Config.RUNS; i++) {
                 StringBuilder builder = new StringBuilder();

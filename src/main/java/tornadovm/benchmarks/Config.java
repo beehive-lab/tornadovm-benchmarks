@@ -22,4 +22,8 @@ public class Config {
 
     public static boolean DEBUG = false;
 
+    public static String HEADER1 = "sequential,streams,threads,vectorAPI,TornadoVM";
+
+    public static String HEADER2 = "sequential,streams,threads,vectorAPI,parallelVectorAPI,TornadoVM";
+
 }

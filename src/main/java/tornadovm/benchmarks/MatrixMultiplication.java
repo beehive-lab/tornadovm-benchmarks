@@ -543,7 +543,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
             }
         }
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, 6, "mxm");
+            Utils.dumpPerformanceTable(timers, 6, "mxm", Config.HEADER2);
         }
     }
 

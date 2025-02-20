@@ -354,7 +354,11 @@ public class Montecarlo extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + validate(outputSeq, outputStream));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputStream));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 3. Parallel with Java Threads
@@ -367,7 +371,11 @@ public class Montecarlo extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + validate(outputSeq, outputThreads));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputThreads));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 4. Parallel with Java Vector API
@@ -380,7 +388,11 @@ public class Montecarlo extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + validate(outputSeq, outputVector));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputVector));
+                } else {
+                    System.out.println();
+                }
             }
         }
 
@@ -401,7 +413,11 @@ public class Montecarlo extends TornadoBenchmark {
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputTornadoVM));
+                    if (i == 0) {
+                        System.out.println(" -- Result Correct? " + validate(outputSeq, outputTornadoVM));
+                    } else {
+                        System.out.println();
+                    }
                 }
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);

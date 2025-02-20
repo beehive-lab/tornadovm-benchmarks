@@ -466,7 +466,12 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(matrixD, outputReference));
+
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixD, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 3. Parallel with Java Threads
@@ -482,7 +487,11 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(matrixE, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixE, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 4. Sequential Using the Vector API
@@ -499,7 +508,11 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(matrixF, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixF, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 5. Parallel Streams using the Vector API
@@ -515,7 +528,11 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(matrixG, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixG, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
         }
 
@@ -539,7 +556,11 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(resultTornadoVM, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(resultTornadoVM, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
         }
         if (option == Option.ALL) {

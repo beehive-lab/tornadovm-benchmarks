@@ -347,7 +347,11 @@ public class DFT extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealStream, outImagStream));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealStream, outImagStream));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 3. Parallel with Java Threads
@@ -362,7 +366,11 @@ public class DFT extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealThreads, outImagThreads));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealThreads, outImagThreads));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 4. Parallel with Java Vector API
@@ -377,7 +385,11 @@ public class DFT extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealVector, outImagVector));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealVector, outImagVector));
+                } else {
+                    System.out.println();
+                }
             }
         }
 
@@ -403,7 +415,11 @@ public class DFT extends TornadoBenchmark {
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealTornado, outImagTornado));
+                    if (i == 0) {
+                        System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealTornado, outImagTornado));
+                    } else {
+                        System.out.println();
+                    }
                 }
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);

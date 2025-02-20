@@ -453,7 +453,11 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(outD, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(outD, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 3. Parallel with Java Threads
@@ -466,7 +470,11 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(outE, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(outE, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 4. Sequential Using the Vector API
@@ -479,7 +487,11 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(outF, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(outF, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
 
             // 5. Parallel Streams using the Vector API
@@ -492,7 +504,11 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(outG, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(outG, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
         }
 
@@ -513,7 +529,11 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                System.out.println(" -- Result Correct? " + Multiplication.verify(resultTornadoVM, outputReference));
+                if (i == 0) {
+                    System.out.println(" -- Result Correct? " + Multiplication.verify(resultTornadoVM, outputReference));
+                } else {
+                    System.out.println();
+                }
             }
         }
         if (option == Option.ALL) {

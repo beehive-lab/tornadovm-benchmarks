@@ -265,6 +265,14 @@ public class MatrixMultiplication extends TornadoBenchmark {
             return check;
         }
 
+        private static void validate(int run, FloatMatrix matrix, FloatMatrix referenceMatrix) {
+            if (run == 0) {
+                System.out.println(" -- Result Correct? " + Multiplication.verify(matrix, referenceMatrix));
+            } else {
+                System.out.println();
+            }
+        }
+
         private static boolean verify(Matrix2DFloat matrix, FloatMatrix referenceMatrix) {
             boolean check = true;
             for (int i = 0; i < matrix.getNumRows(); i++) {
@@ -280,6 +288,14 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 }
             }
             return check;
+        }
+
+        private static void validate(int run, Matrix2DFloat matrix, FloatMatrix referenceMatrix) {
+            if (run == 0) {
+                System.out.println(" -- Result Correct? " + Multiplication.verify(matrix, referenceMatrix));
+            } else {
+                System.out.println();
+            }
         }
     }
 
@@ -466,12 +482,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixD, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, matrixD, outputReference);
             }
 
             // 3. Parallel with Java Threads
@@ -487,11 +498,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixE, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, matrixE, outputReference);
             }
 
             // 4. Sequential Using the Vector API
@@ -508,11 +515,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixF, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, matrixF, outputReference);
             }
 
             // 5. Parallel Streams using the Vector API
@@ -528,11 +531,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(matrixG, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, matrixG, outputReference);
             }
         }
 
@@ -556,11 +555,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
                 String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                 System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(resultTornadoVM, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, resultTornadoVM, outputReference);
             }
         }
         if (option == Option.ALL) {

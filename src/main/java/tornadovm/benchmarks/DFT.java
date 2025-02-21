@@ -170,21 +170,29 @@ public class DFT extends TornadoBenchmark {
         }
     }
 
-    public boolean validate(int size, FloatArray outRealSeq, FloatArray outImagSeq, FloatArray outReal, FloatArray outImag) {
+    public boolean validate(int size, FloatArray outRealRef, FloatArray outImagRef, FloatArray outReal, FloatArray outImag) {
         boolean val = true;
         for (int i = 0; i < size; i++) {
-            if (Math.abs(outRealSeq.get(i) - outReal.get(i)) > 1.0f) {
-                System.out.println(outReal.get(i) + " vs " + outRealSeq.get(i) + "\n");
+            if (Math.abs(outRealRef.get(i) - outReal.get(i)) > 1.0f) {
+                System.out.println(outReal.get(i) + " vs " + outRealRef.get(i) + "\n");
                 val = false;
                 break;
             }
-            if (Math.abs(outImagSeq.get(i) - outImag.get(i)) > 1.0f) {
-                System.out.println(outImagSeq.get(i) + " vs " + outImag.get(i) + "\n");
+            if (Math.abs(outImagRef.get(i) - outImag.get(i)) > 1.0f) {
+                System.out.println(outImagRef.get(i) + " vs " + outImag.get(i) + "\n");
                 val = false;
                 break;
             }
         }
         return val;
+    }
+
+    public void validate(int run, int size, FloatArray outRealRef, FloatArray outImaRef, FloatArray outReal, FloatArray outImag) {
+        if (run == 0) {
+            System.out.println(" -- Result Correct? " + validate(SIZE, outRealRef, outImaRef, outReal, outImag));
+        } else {
+            System.out.println();
+        }
     }
 
     @State(Scope.Thread)
@@ -347,11 +355,7 @@ public class DFT extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealStream, outImagStream));
-                } else {
-                    System.out.println();
-                }
+                validate(i, SIZE, outRealSeq, outImagSeq, outRealStream, outImagStream);
             }
 
             // 3. Parallel with Java Threads
@@ -366,11 +370,7 @@ public class DFT extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealThreads, outImagThreads));
-                } else {
-                    System.out.println();
-                }
+                validate(i, SIZE, outRealSeq, outImagSeq, outRealThreads, outImagThreads);
             }
 
             // 4. Parallel with Java Vector API
@@ -385,11 +385,7 @@ public class DFT extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealVector, outImagVector));
-                } else {
-                    System.out.println();
-                }
+                validate(i, SIZE, outRealSeq, outImagSeq, outRealVector, outImagVector);
             }
         }
 
@@ -415,11 +411,7 @@ public class DFT extends TornadoBenchmark {
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    if (i == 0) {
-                        System.out.println(" -- Result Correct? " + validate(SIZE, outRealSeq, outImagSeq, outRealTornado, outImagTornado));
-                    } else {
-                        System.out.println();
-                    }
+                    validate(i, SIZE, outRealSeq, outImagSeq, outRealTornado, outImagTornado);
                 }
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);

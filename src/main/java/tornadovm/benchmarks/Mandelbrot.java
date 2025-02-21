@@ -199,6 +199,14 @@ public class Mandelbrot extends TornadoBenchmark {
         return true;
     }
 
+    private void validate(int run, ShortArray outputRef, ShortArray output, int size) {
+        if (run == 0) {
+            System.out.println(" -- Result Correct? " + validate(outputRef, output, size));
+        } else {
+            System.out.println();
+        }
+    }
+
     @State(Scope.Thread)
     public static class JMHBenchmark {
         private Mandelbrot benchmark;
@@ -328,11 +336,7 @@ public class Mandelbrot extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputStream, size));
-                } else {
-                    System.out.println();
-                }
+                validate(i, outputSeq, outputStream, size);
             }
 
             // 3. Parallel with Java Threads
@@ -345,12 +349,7 @@ public class Mandelbrot extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputThreads, size));
-                } else {
-                    System.out.println();
-                }
+                validate(i, outputSeq, outputThreads, size);
             }
 
             // 4. Parallel with Java Vector API
@@ -364,12 +363,7 @@ public class Mandelbrot extends TornadoBenchmark {
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    if (i == 0) {
-                        System.out.println(" -- Result Correct? " + validate(outputSeq, outputVector, size));
-                    } else {
-                        System.out.println();
-                    }
-
+                    validate(i, outputSeq, outputVector, size);
                 } catch (RuntimeException e) {
                     System.out.println("Error - Parallel Vector API: " + e.getMessage());
                     // We store -1 in the timers list to indicate that an error has occurred.
@@ -394,11 +388,7 @@ public class Mandelbrot extends TornadoBenchmark {
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    if (i == 0) {
-                        System.out.println(" -- Result Correct? " + validate(outputSeq, outputTornadoVM, size));
-                    } else {
-                        System.out.println();
-                    }
+                    validate(i, outputSeq, outputTornadoVM, size);
                 }
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);

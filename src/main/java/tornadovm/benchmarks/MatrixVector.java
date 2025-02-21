@@ -275,6 +275,14 @@ public class MatrixVector extends TornadoBenchmark {
             return check;
         }
 
+        private static void validate(int run, FVector array, FVector refArray) {
+            if (run == 0) {
+                System.out.println(" -- Result Correct? " + Multiplication.verify(array, refArray));
+            } else {
+                System.out.println();
+            }
+        }
+
         private static boolean verify(FloatArray array, FVector refArray) {
             boolean check = true;
             for (int i = 0; i < array.getSize(); i++) {
@@ -288,6 +296,14 @@ public class MatrixVector extends TornadoBenchmark {
                 return false;
             }
             return check;
+        }
+
+        private static void validate(int run, FloatArray array, FVector refArray) {
+            if (run == 0) {
+                System.out.println(" -- Result Correct? " + Multiplication.verify(array, refArray));
+            } else {
+                System.out.println();
+            }
         }
     }
 
@@ -453,11 +469,7 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(outD, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, outD, outputReference);
             }
 
             // 3. Parallel with Java Threads
@@ -470,11 +482,7 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(outE, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, outE, outputReference);
             }
 
             // 4. Sequential Using the Vector API
@@ -487,11 +495,7 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(outF, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, outF, outputReference);
             }
 
             // 5. Parallel Streams using the Vector API
@@ -504,11 +508,7 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(outG, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, outG, outputReference);
             }
         }
 
@@ -529,11 +529,7 @@ public class MatrixVector extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + Multiplication.verify(resultTornadoVM, outputReference));
-                } else {
-                    System.out.println();
-                }
+                Multiplication.validate(i, resultTornadoVM, outputReference);
             }
         }
         if (option == Option.ALL) {

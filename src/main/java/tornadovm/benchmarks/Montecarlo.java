@@ -220,6 +220,14 @@ public class Montecarlo extends TornadoBenchmark {
         return true;
     }
 
+    private void validate(int run, FloatArray outputRef, FloatArray output) {
+        if (run == 0) {
+            System.out.println(" -- Result Correct? " + validate(outputRef, output));
+        } else {
+            System.out.println();
+        }
+    }
+
     @State(Scope.Thread)
     public static class JMHBenchmark {
 
@@ -354,11 +362,7 @@ public class Montecarlo extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputStream));
-                } else {
-                    System.out.println();
-                }
+                validate(i, outputSeq, outputStream);
             }
 
             // 3. Parallel with Java Threads
@@ -371,11 +375,7 @@ public class Montecarlo extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputThreads));
-                } else {
-                    System.out.println();
-                }
+                validate(i, outputSeq, outputThreads);
             }
 
             // 4. Parallel with Java Vector API
@@ -388,11 +388,7 @@ public class Montecarlo extends TornadoBenchmark {
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                if (i == 0) {
-                    System.out.println(" -- Result Correct? " + validate(outputSeq, outputVector));
-                } else {
-                    System.out.println();
-                }
+                validate(i, outputSeq, outputVector);
             }
         }
 
@@ -413,11 +409,7 @@ public class Montecarlo extends TornadoBenchmark {
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    if (i == 0) {
-                        System.out.println(" -- Result Correct? " + validate(outputSeq, outputTornadoVM));
-                    } else {
-                        System.out.println();
-                    }
+                    validate(i, outputSeq, outputTornadoVM);
                 }
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);

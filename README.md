@@ -1,5 +1,6 @@
 # TornadoVM Benchmarks 
 
+TornadoVM Benchmark Suite.
 
 ## How to build?
 
@@ -46,12 +47,23 @@ source setvars.sh
 ./run.sh 
 ```
 
+## Run with JMH 
 
-## How to Change Device? 
+```bash
+./run.sh <benchmark> jmh
+```
 
+For example, to run `mxm` with `jmh`:
+
+```bash
+./run.sh mxm jmh
+```
+
+## How to Change Device for an Specific Benchmark? 
 
 For example, device `0:2` for the benchmark `mxv`:
 
 ```bash
 tornado --printKernel --jvm="-Dtornado.device.memory=2GB -Dbenchmark.mxv.device=0:2" -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.Main mxv
 ```
+    

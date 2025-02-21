@@ -35,9 +35,6 @@ public class Main {
             TornadoBenchmark benchmark;
             String benchmarkName = args[0];
 
-            // remove element 0 from the list
-            String[] arguments = new String[args.length - 1];
-            System.arraycopy(args, 1, arguments, 0, arguments.length);
             switch (benchmarkName) {
                 case "mxm" -> benchmark = new MatrixMultiplication();
                 case "dft" -> benchmark = new DFT();
@@ -46,6 +43,9 @@ public class Main {
                 case "mxv" -> benchmark = new MatrixVector();
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
+            // remove element 0 from the list
+            String[] arguments = new String[args.length - 1];
+            System.arraycopy(args, 1, arguments, 0, arguments.length);
             benchmark.run(arguments);
         } else {
             System.out.println("[TornadoVM Benchmarks] Running all benchmarks...");

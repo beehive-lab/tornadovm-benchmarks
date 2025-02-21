@@ -48,6 +48,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * How to run?
+ * <code>
+ *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.DFT
+ * </code>
+ */
 public class DFT extends TornadoBenchmark {
 
     final static int SIZE = 8192;

@@ -34,8 +34,12 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
+import uk.ac.manchester.tornado.api.WorkerGrid;
+import uk.ac.manchester.tornado.api.WorkerGrid1D;
+import uk.ac.manchester.tornado.api.WorkerGrid2D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
@@ -239,12 +243,19 @@ public class MatrixMultiplication extends TornadoBenchmark {
         }
 
         private static TornadoExecutionPlan createTornadoVMPlan(Matrix2DFloat a, Matrix2DFloat b, Matrix2DFloat c) {
-            TaskGraph taskGraph = new TaskGraph("mxm");
+            TaskGraph taskGraph = new TaskGraph("benchmark");
             taskGraph.transferToDevice(DataTransferMode.FIRST_EXECUTION, a, b) //
                     .task("mxm", Multiplication::mxmTornadoVM, a, b, c, a.getNumRows()) //
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
             TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
-            executionPlan.withWarmUp().withDevice(TornadoExecutionPlan.getDevice(0, 0));
+            WorkerGrid workerGrid = new WorkerGrid2D(a.getNumRows(), a.getNumColumns());
+            workerGrid.setLocalWork(8, 8, 1);
+            GridScheduler gridScheduler = new GridScheduler("benchmark.mxm", workerGrid);
+            executionPlan
+                    .withDevice(TornadoExecutionPlan.getDevice(0, 0))
+                    //.withGridScheduler(gridScheduler)
+                    .withWarmUp();
+
             return executionPlan;
         }
 

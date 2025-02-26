@@ -36,12 +36,15 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
 import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.TaskGraph;
+import uk.ac.manchester.tornado.api.TornadoBackend;
+import uk.ac.manchester.tornado.api.TornadoDeviceMap;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.WorkerGrid;
 import uk.ac.manchester.tornado.api.WorkerGrid1D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
+import uk.ac.manchester.tornado.api.enums.TornadoDeviceType;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
 
@@ -49,10 +52,12 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
@@ -254,14 +259,17 @@ public class MatrixVector extends TornadoBenchmark {
                     .task("mxv", Multiplication::mxvTornadoVM, a, b, c, a.getNumRows()) //
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
             TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
+
             TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
+
             WorkerGrid workerGrid = new WorkerGrid1D(a.getNumRows());
             workerGrid.setLocalWork(16, 1, 1);
             GridScheduler gridScheduler = new GridScheduler("benchmark.mxv", workerGrid);
             executionPlan //
-                    .withDevice(device) //
-                    //.withGridScheduler(gridScheduler) //
-                    .withWarmUp(); //
+                    //.withGridScheduler(gridScheduler)
+                    .withDevice(device);
+
+
             return executionPlan;
         }
 

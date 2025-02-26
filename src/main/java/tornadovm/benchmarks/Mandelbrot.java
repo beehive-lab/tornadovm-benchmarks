@@ -34,6 +34,7 @@ import org.openjdk.jmh.runner.options.TimeValue;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
+import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.types.arrays.ShortArray;
@@ -378,6 +379,10 @@ public class Mandelbrot extends TornadoBenchmark {
                     .task("mandelbrot", Mandelbrot::computeWithTornadoVM, SIZE, outputTornadoVM)
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, outputTornadoVM);
             try (TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
+
+                TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
+                executionPlan.withDevice(device);
+
                 // 5. On the GPU using TornadoVM
                 for (int i = 0; i < Config.RUNS; i++) {
                     long start = System.nanoTime();

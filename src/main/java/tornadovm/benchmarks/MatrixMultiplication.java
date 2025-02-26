@@ -40,6 +40,7 @@ import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.WorkerGrid;
 import uk.ac.manchester.tornado.api.WorkerGrid2D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
+import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
 
@@ -247,13 +248,16 @@ public class MatrixMultiplication extends TornadoBenchmark {
                     .task("mxm", Multiplication::mxmTornadoVM, a, b, c, a.getNumRows()) //
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
             TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
+
+            TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
+            executionPlan.withDevice(device);
+
             WorkerGrid workerGrid = new WorkerGrid2D(a.getNumRows(), a.getNumColumns());
             workerGrid.setLocalWork(8, 8, 1);
             GridScheduler gridScheduler = new GridScheduler("benchmark.mxm", workerGrid);
             executionPlan
-                    .withDevice(TornadoExecutionPlan.getDevice(0, 0))
                     //.withGridScheduler(gridScheduler)
-                    .withWarmUp();
+                    .withDevice(device);
 
             return executionPlan;
         }

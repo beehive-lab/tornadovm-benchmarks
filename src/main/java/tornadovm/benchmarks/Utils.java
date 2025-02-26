@@ -90,14 +90,14 @@ public class Utils {
 
     public static TornadoDevice getDeviceByType(TornadoDeviceType deviceType) {
         TornadoDeviceMap deviceMap = TornadoExecutionPlan.getTornadoDeviceMap();
-        List<TornadoBackend> computeAorta = deviceMap
+        List<TornadoBackend> backendStream = deviceMap
                 .getBackendsWithPredicate(backend -> backend
                         .getAllDevices()
                         .stream()
                         .anyMatch(device -> device.getDeviceType() == deviceType));
 
-        if (computeAorta.isEmpty()) {
-            Stream<TornadoDevice> tornadoDeviceStream = computeAorta.getFirst()
+        if (backendStream.isEmpty()) {
+            Stream<TornadoDevice> tornadoDeviceStream = backendStream.getFirst()
                     .getAllDevices()
                     .stream()
                     .filter(device -> device.getDeviceType() == deviceType);
@@ -110,14 +110,14 @@ public class Utils {
 
     public static TornadoDevice getDeviceByName(String deviceName) {
         TornadoDeviceMap deviceMap = TornadoExecutionPlan.getTornadoDeviceMap();
-        List<TornadoBackend> computeAorta = deviceMap
+        List<TornadoBackend> backendStream = deviceMap
                 .getBackendsWithPredicate(backend -> backend
                         .getAllDevices()
                         .stream()
                         .anyMatch(device -> device.getPhysicalDevice().getDeviceName().toLowerCase().contains(deviceName.toLowerCase())));
 
-        if (!computeAorta.isEmpty()) {
-            Stream<TornadoDevice> tornadoDeviceStream = computeAorta.getFirst()
+        if (!backendStream.isEmpty()) {
+            Stream<TornadoDevice> tornadoDeviceStream = backendStream.getFirst()
                     .getAllDevices()
                     .stream()
                     .filter(device -> device.getPhysicalDevice().getDeviceName().toLowerCase().contains(deviceName.toLowerCase()));

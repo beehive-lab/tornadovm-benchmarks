@@ -30,15 +30,23 @@ source setvars.sh
 ### Run Individual benchamrk:
 
 ```bash
+# Matrix Multiplication
 ./run.sh mxm
 
+# Matrix Vector
 ./run.sh mxv
 
+# Mandelbrot
 ./run.sh mandelbrot
 
-./run.sh mandelbrot
+# Montecarlo
+./run.sh motecarlo
 
+# Run DFT
 ./run.sh dft
+
+# Matrix Transpose
+./run.sh mt
 ```
 
 ## Run all:

@@ -54,6 +54,12 @@ import java.util.stream.IntStream;
 
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
+/**
+ * How to run?
+ * <code>
+ *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.MatrixMultiplication
+ * </code>
+ */
 public class MatrixMultiplication extends Benchmark {
 
     // Change this value to adapt the matrix size (size x size)

@@ -19,7 +19,6 @@ package tornadovm.benchmarks;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
-import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -55,7 +54,7 @@ import java.util.stream.IntStream;
  *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.DFT
  * </code>
  */
-public class DFT extends TornadoBenchmark {
+public class DFT extends Benchmark {
 
     final static int SIZE = 8192;
 
@@ -239,7 +238,7 @@ public class DFT extends TornadoBenchmark {
             executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -249,7 +248,7 @@ public class DFT extends TornadoBenchmark {
             computeSequential(state.inReal, state.inImag, state.outReal, state.outImag);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -259,7 +258,7 @@ public class DFT extends TornadoBenchmark {
             state.dft.computeWithJavaStreams(state.inReal, state.inImag, state.outReal, state.outImag);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -273,7 +272,7 @@ public class DFT extends TornadoBenchmark {
             }
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -283,7 +282,7 @@ public class DFT extends TornadoBenchmark {
             state.dft.computeWithParallelVectorAPI(state.inReal, state.inImag, state.outReal, state.outImag);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)

@@ -18,7 +18,6 @@ package tornadovm.benchmarks;
 
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
-import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -56,7 +55,7 @@ import java.util.stream.IntStream;
  *     </code>
  * </p>
  */
-public class Montecarlo extends TornadoBenchmark {
+public class Montecarlo extends Benchmark {
 
     static final int SIZE = 16777216 * 8;
 
@@ -249,7 +248,7 @@ public class Montecarlo extends TornadoBenchmark {
             executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -259,7 +258,7 @@ public class Montecarlo extends TornadoBenchmark {
             computeSequential(state.output, SIZE);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -269,7 +268,7 @@ public class Montecarlo extends TornadoBenchmark {
             state.montecarlo.computeWithJavaStreams(state.output, SIZE);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -279,7 +278,7 @@ public class Montecarlo extends TornadoBenchmark {
             state.montecarlo.computeWithJavaThreads(state.output);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -289,7 +288,7 @@ public class Montecarlo extends TornadoBenchmark {
             state.montecarlo.computeWithParallelVectorAPI(state.output, SIZE);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)

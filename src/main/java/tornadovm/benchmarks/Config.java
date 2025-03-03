@@ -20,6 +20,8 @@ public class Config {
 
     public static int RUNS = 100;
 
+    public static float DELTA = 0.1f;
+
     public static boolean DEBUG = false;
 
     public static String HEADER1 = "sequential,streams,threads,vectorAPI,TornadoVM\n";

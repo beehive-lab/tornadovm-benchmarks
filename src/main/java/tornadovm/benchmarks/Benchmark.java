@@ -18,7 +18,7 @@ package tornadovm.benchmarks;
 
 import org.openjdk.jmh.runner.RunnerException;
 
-public abstract class TornadoBenchmark {
+public abstract class Benchmark {
 
     abstract int getSize();
 

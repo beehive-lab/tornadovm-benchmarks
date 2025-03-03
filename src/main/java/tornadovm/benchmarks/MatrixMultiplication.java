@@ -19,7 +19,6 @@ package tornadovm.benchmarks;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
-import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -55,7 +54,7 @@ import java.util.stream.IntStream;
 
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
-public class MatrixMultiplication extends TornadoBenchmark {
+public class MatrixMultiplication extends Benchmark {
 
     // Change this value to adapt the matrix size (size x size)
     final static int SIZE = 1024;
@@ -231,9 +230,9 @@ public class MatrixMultiplication extends TornadoBenchmark {
         }
 
         public static Matrix2DFloat transformMatrixForTornadoVM(FloatMatrix a) {
-            int m = a.M();
-            int n = a.N();
-            Matrix2DFloat matrix2DFloat = new Matrix2DFloat(m, n);
+            final int m = a.M();
+            final int n = a.N();
+            final Matrix2DFloat matrix2DFloat = new Matrix2DFloat(m, n);
             for (int i = 0; i < m; i++) {
                 for (int j = 0; j < n; j++) {
                     matrix2DFloat.set(i, j, a.get(i, j));
@@ -357,7 +356,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
             executionPlan = Multiplication.createTornadoVMPlan(tma, tmb, resultTornadoVM);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -367,7 +366,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
             MatrixMultiplication.Multiplication.mxmSequential(state.matrixA, state.matrixB, state.matrixC);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -377,7 +376,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
             MatrixMultiplication.Multiplication.mxmParallelStreams(state.matrixA, state.matrixB, state.matrixD);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -387,7 +386,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
             MatrixMultiplication.Multiplication.mxmParallelThreads(state.matrixA, state.matrixB, state.matrixE);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -397,7 +396,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
             MatrixMultiplication.Multiplication.mxmSequentialVectorized(state.matrixA, state.matrixB, state.matrixF);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)
@@ -407,7 +406,7 @@ public class MatrixMultiplication extends TornadoBenchmark {
             MatrixMultiplication.Multiplication.mxmParallelVectorized(state.matrixA, state.matrixB, state.matrixG);
         }
 
-        @Benchmark
+        @org.openjdk.jmh.annotations.Benchmark
         @BenchmarkMode(Mode.AverageTime)
         @Warmup(iterations = 2, time = 60)
         @Measurement(iterations = 5, time = 30)

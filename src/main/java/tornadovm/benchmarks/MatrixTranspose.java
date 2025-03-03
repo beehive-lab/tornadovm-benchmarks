@@ -16,6 +16,8 @@
  */
 package tornadovm.benchmarks;
 
+import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -36,144 +38,50 @@ import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
-import uk.ac.manchester.tornado.api.types.arrays.ShortArray;
+import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
 
+import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * <code>
- *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.Mandelbrot
- * </code>
- */
-public class Mandelbrot extends Benchmark {
-    
-    static final int SIZE = 512;
-    static final int ITERATIONS = 10000;
+public class MatrixTranspose extends Benchmark {
 
-    private ShortArray computeSequential(int size) {
-        final int iterations = ITERATIONS;
-        float space = 2.0f / size;
+    final static int SIZE = 8192;
 
-        ShortArray result = new ShortArray(size * size);
-
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                float Zr = 0.0f;
-                float Zi = 0.0f;
-                float Cr = (1 * j * space - 1.5f);
-                float Ci = (1 * i * space - 1.0f);
-                float ZrN = 0;
-                float ZiN = 0;
-                int y;
-                for (y = 0; y < iterations && ZiN + ZrN <= 4.0f; y++) {
-                    Zi = 2.0f * Zr * Zi + Ci;
-                    Zr = 1 * ZrN - ZiN + Cr;
-                    ZiN = Zi * Zi;
-                    ZrN = Zr * Zr;
-                }
-                short r = (short) ((y * 255) / iterations);
-                result.set(i * size + j, r);
-            }
-        }
-        return result;
-    }
-
-    private static void computeWithTornadoVM(int size, ShortArray output) {
-        final int iterations = ITERATIONS;
-        float space = 2.0f / size;
-        for (@Parallel int i = 0; i < size; i++) {
-            for (@Parallel int j = 0; j < size; j++) {
-                float Zr = 0.0f;
-                float Zi = 0.0f;
-                float Cr = (1 * j * space - 1.5f);
-                float Ci = (1 * i * space - 1.0f);
-                float ZrN = 0;
-                float ZiN = 0;
-                int y = 0;
-                for (int ii = 0; ii < iterations; ii++) {
-                    if (ZiN + ZrN <= 4.0f) {
-                        Zi = 2.0f * Zr * Zi + Ci;
-                        Zr = 1 * ZrN - ZiN + Cr;
-                        ZiN = Zi * Zi;
-                        ZrN = Zr * Zr;
-                        y++;
-                    } else {
-                        ii = iterations;
-                    }
-                }
-                short r = (short) ((y * 255) / iterations);
-                output.set(i * size + j, r);
+    public static void computeSequential(Matrix2DFloat a, Matrix2DFloat b) {
+        for (int i = 0; i < a.getNumRows(); i++) {
+            for (int j = 0; j < b.getNumColumns(); j++) {
+                b.set(j, i, a.get(i, j));
             }
         }
     }
 
-    private void computeWithJavaStreams(int size, ShortArray output) {
-        final int iterations = ITERATIONS;
-        float space = 2.0f / size;
-        IntStream.range(0, size).parallel().forEach(i -> {
-            IntStream.range(0, size).parallel().forEach(j -> {
-                float Zr = 0.0f;
-                float Zi = 0.0f;
-                float Cr = (1 * j * space - 1.5f);
-                float Ci = (1 * i * space - 1.0f);
-                float ZrN = 0;
-                float ZiN = 0;
-                int y = 0;
-                for (int ii = 0; ii < iterations; ii++) {
-                    if (ZiN + ZrN <= 4.0f) {
-                        Zi = 2.0f * Zr * Zi + Ci;
-                        Zr = 1 * ZrN - ZiN + Cr;
-                        ZiN = Zi * Zi;
-                        ZrN = Zr * Zr;
-                        y++;
-                    } else {
-                        ii = iterations;
-                    }
-                }
-                short r = (short) ((y * 255) / iterations);
-                output.set(i * size + j, r);
+    public static void computeWithJavaStreams(Matrix2DFloat a, Matrix2DFloat b) {
+        IntStream.range(0, a.getNumRows()).parallel().forEach(i -> {
+            IntStream.range(0, b.getNumColumns()).parallel().forEach(j -> {
+                b.set(j, i, a.get(i, j));
             });
         });
     }
 
-    private void computeWithJavaThreads(ShortArray output) throws InterruptedException {
+    public static void computeWithJavaThreads(Matrix2DFloat a, Matrix2DFloat b) throws InterruptedException {
         Range[] ranges = Utils.createRangesForCPU(SIZE);
-        final int iterations = ITERATIONS;
-        float space = 2.0f / Mandelbrot.SIZE;
-
         int maxProcessors = Runtime.getRuntime().availableProcessors();
         Thread[] threads = new Thread[maxProcessors];
+
         IntStream.range(0, threads.length).forEach(threadIndex -> {
             threads[threadIndex] = new Thread(() -> {
                 for (int i = ranges[threadIndex].min(); i < ranges[threadIndex].max(); i++) {
-                    for (int j = 0; j < Mandelbrot.SIZE; j++) {
-                        float Zr = 0.0f;
-                        float Zi = 0.0f;
-                        float Cr = (1 * j * space - 1.5f);
-                        float Ci = (1 * i * space - 1.0f);
-                        float ZrN = 0;
-                        float ZiN = 0;
-                        int y = 0;
-                        for (int ii = 0; ii < iterations; ii++) {
-                            if (ZiN + ZrN <= 4.0f) {
-                                Zi = 2.0f * Zr * Zi + Ci;
-                                Zr = 1 * ZrN - ZiN + Cr;
-                                ZiN = Zi * Zi;
-                                ZrN = Zr * Zr;
-                                y++;
-                            } else {
-                                ii = iterations;
-                            }
-                        }
-                        short r = (short) ((y * 255) / iterations);
-                        output.set(i * Mandelbrot.SIZE + j, r);
+                    for (int j = 0; j < b.getNumColumns(); j++) {
+                        b.set(j, i, a.get(i, j));
                     }
                 }
             });
         });
+
         for (Thread thread : threads) {
             thread.start();
         }
@@ -182,16 +90,34 @@ public class Mandelbrot extends Benchmark {
         }
     }
 
-    // TODO: Implement with Vector API
-    private void computeWithParallelVectorAPI(int size, ShortArray output) {
-        throw new RuntimeException("Not implemented yet");
+    // TODO: not sure if it is possible to compute this algorithm efficiently using the vector API
+    public static void computeWithParallelVectorAPI(Matrix2DFloat a, Matrix2DFloat b) {
+        VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
+        final int vectorLength = SPECIES.length();
+        IntStream.range(0, a.getNumRows()).parallel().forEach(i -> {
+            for (int j = 0; j < b.getNumColumns(); j += vectorLength) {
+                FloatVector vector = FloatVector.fromMemorySegment(SPECIES, a.getSegment(), ((i * a.getNumRows()) + j) * 4, ByteOrder.nativeOrder());
+                for (int k = 0; k < vectorLength; k++) {
+                    if (j + k < b.getNumColumns()) {
+                        b.set(j + k, i, vector.lane(k));
+                    }
+                }
+            }
+        });
     }
 
-    private boolean validate(ShortArray outputRef, ShortArray output, int size) {
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                if (Math.abs(outputRef.get(i * size + j) - output.get(i * size + j)) > 0.0f) {
-                    System.out.println(outputRef.get(i * size + j) + " != " + output.get(i * size + j));
+    public static void computeWithTornadoVM(Matrix2DFloat a, Matrix2DFloat b) {
+        for (@Parallel int i = 0; i < a.getNumRows(); i++) {
+            for (@Parallel int j = 0; j < b.getNumColumns(); j++) {
+                b.set(j, i, a.get(i, j));
+            }
+        }
+    }
+
+    private static boolean verify(Matrix2DFloat a, Matrix2DFloat b) {
+        for (int i = 0; i < a.getNumRows(); i++) {
+            for (int j = 0; j < a.getNumColumns(); j++) {
+                if (Math.abs(a.get(i, j) - b.get(i, j)) > Config.DELTA) {
                     return false;
                 }
             }
@@ -199,27 +125,38 @@ public class Mandelbrot extends Benchmark {
         return true;
     }
 
-    private void validate(int run, ShortArray outputRef, ShortArray output, int size) {
-        if (run == 0) {
-            System.out.println(" -- Result Correct? " + validate(outputRef, output, size));
-        } else {
-            System.out.println();
-        }
+    private static void validate(int run, Matrix2DFloat matrix, Matrix2DFloat reference) {
+        System.out.println(" -- Result Correct? " + verify(matrix, reference));
+//        if (run == 0) {
+//            System.out.println(" -- Result Correct? " + verify(matrix, reference));
+//        } else {
+//            System.out.println();
+//        }
+    }
+
+    @Override
+    int getSize() {
+        return SIZE;
     }
 
     @State(Scope.Thread)
     public static class JMHBenchmark {
-        private Mandelbrot benchmark;
-        private ShortArray output;
+
+        private MatrixTranspose matrixTranspose;
+        private Matrix2DFloat matrix;
+        private Matrix2DFloat output;
         private TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
         public void doSetup() {
-            benchmark = new Mandelbrot();
-            output = new ShortArray(SIZE * SIZE);
+            matrixTranspose = new MatrixTranspose();
+            matrix = new Matrix2DFloat(SIZE, SIZE);
+            output = new Matrix2DFloat(SIZE, SIZE);
             TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .task("mandelbrot", Mandelbrot::computeWithTornadoVM, SIZE, output)
+                    .transferToDevice(DataTransferMode.FIRST_EXECUTION, matrix)
+                    .task("matrixTranspose", MatrixTranspose::computeWithTornadoVM, matrix, output)
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
+
             executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
         }
 
@@ -229,8 +166,8 @@ public class Mandelbrot extends Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mandelbrotSequential(JMHBenchmark state) {
-            state.benchmark.computeSequential(SIZE);
+        public void matrixTransposeSequential(JMHBenchmark state) {
+            computeSequential(state.matrix, state.output);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -239,8 +176,8 @@ public class Mandelbrot extends Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mandelbrotParallelStreams(JMHBenchmark state) {
-            state.benchmark.computeWithJavaStreams(SIZE,  state.output);
+        public void matrixTransposeParallelStreams(JMHBenchmark state) {
+            state.matrixTranspose.computeWithJavaStreams(state.matrix, state.output);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -249,8 +186,8 @@ public class Mandelbrot extends Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mandelbrotParallelThreads(JMHBenchmark state) throws InterruptedException {
-            state.benchmark.computeWithJavaThreads(state.output);
+        public void matrixTransposeParallelThreads(JMHBenchmark state) throws InterruptedException {
+            state.matrixTranspose.computeWithJavaThreads(state.matrix, state.output);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -259,8 +196,8 @@ public class Mandelbrot extends Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mandelbrotParallelVectorAPI(JMHBenchmark state) {
-            state.benchmark.computeWithParallelVectorAPI(SIZE, state.output);
+        public void matrixTransposeParallelVectorAPI(JMHBenchmark state) {
+            state.matrixTranspose.computeWithParallelVectorAPI(state.matrix, state.output);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -269,20 +206,16 @@ public class Mandelbrot extends Benchmark {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void mandelbrotTornadoVM(JMHBenchmark state) {
+        public void matrixTransposeTornadoVM(JMHBenchmark state) {
             state.executionPlan.execute();
         }
-    }
 
-    @Override
-    int getSize() {
-        return SIZE;
     }
 
     @Override
     void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
-                .include(Mandelbrot.class.getName() + ".*") //
+                .include(MatrixTranspose.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
                 .timeUnit(TimeUnit.NANOSECONDS) //
                 .warmupTime(TimeValue.seconds(60)) //
@@ -295,29 +228,42 @@ public class Mandelbrot extends Benchmark {
     }
 
     @Override
-    void runTestAll(final int size, Option option) throws InterruptedException {
+    void runTestAll(int size, Option option) throws InterruptedException {
 
-        ShortArray outputSeq = new ShortArray(size * size);
-        ShortArray outputStream = new ShortArray(size * size);
-        ShortArray outputThreads = new ShortArray(size * size);
-        ShortArray outputVector = new ShortArray(size * size);
-        ShortArray outputTornadoVM = new ShortArray(size * size);
+        // Using Panama Segments
+        Matrix2DFloat matrixA = new Matrix2DFloat(size, size);
 
-        // 5 implementations to compare
+        // Matrix for results
+        Matrix2DFloat outputReference = new Matrix2DFloat(size, size);
+        Matrix2DFloat outputStreams = new Matrix2DFloat(size, size);
+        Matrix2DFloat outputThreads = new Matrix2DFloat(size, size);
+        Matrix2DFloat outputVector = new Matrix2DFloat(size, size);
+        Matrix2DFloat outputTornado = new Matrix2DFloat(size, size);
+
+
+        Random r = new Random(71);
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                matrixA.set(i, j, r.nextFloat());
+            }
+        }
+
         final int implementationsToCompare = 5;
+        // 6 implementations to compare
         ArrayList<ArrayList<Long>> timers = IntStream.range(0, implementationsToCompare) //
                 .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
                 .collect(Collectors.toCollection(ArrayList::new));
 
+        // 1. Sequential
         for (int i = 0; i < Config.RUNS; i++) {
             long start = System.nanoTime();
-            outputSeq = computeSequential(SIZE);
+            computeSequential(matrixA, outputReference);
             long end = System.nanoTime();
             long elapsedTime = (end - start);
             timers.get(0).add(elapsedTime);
             double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
-            System.out.println("Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
+            System.out.println("Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) ");
 
             if (option == Option.TORNADO_ONLY) {
                 // We only run one iteration just to run the reference implementation to check results.
@@ -329,41 +275,41 @@ public class Mandelbrot extends Benchmark {
             // 2. Parallel Streams
             for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
-                computeWithJavaStreams(SIZE, outputStream);
+                computeWithJavaStreams(matrixA, outputStreams);
                 long end = System.nanoTime();
                 long elapsedTime = (end - start);
                 timers.get(1).add(elapsedTime);
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, outputSeq, outputStream, size);
+                validate(i, outputStreams, outputReference);
             }
 
             // 3. Parallel with Java Threads
             for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
-                computeWithJavaThreads(outputThreads);
+                computeWithJavaThreads(matrixA, outputThreads);
                 long end = System.nanoTime();
                 long elapsedTime = (end - start);
                 timers.get(2).add(elapsedTime);
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, outputSeq, outputThreads, size);
+                validate(i, outputThreads, outputReference);
             }
 
             // 4. Parallel with Java Vector API
             for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
                 try {
-                    computeWithParallelVectorAPI(SIZE, outputVector);
+                    long start = System.nanoTime();
+                    computeWithParallelVectorAPI(matrixA, outputVector);
                     long end = System.nanoTime();
                     long elapsedTime = (end - start);
                     timers.get(3).add(elapsedTime);
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    validate(i, outputSeq, outputVector, size);
+                    validate(i, outputVector, outputReference);
                 } catch (RuntimeException e) {
                     System.out.println("Error - Parallel Vector API: " + e.getMessage());
                     // We store -1 in the timers list to indicate that an error has occurred.
@@ -375,8 +321,10 @@ public class Mandelbrot extends Benchmark {
         if (option == Option.ALL || option == Option.TORNADO_ONLY) {
             // TornadoVM
             TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .task("mandelbrot", Mandelbrot::computeWithTornadoVM, SIZE, outputTornadoVM)
-                    .transferToHost(DataTransferMode.EVERY_EXECUTION, outputTornadoVM);
+                    .transferToDevice(DataTransferMode.FIRST_EXECUTION, matrixA)
+                    .task("matrixTranspose", MatrixTranspose::computeWithTornadoVM, matrixA, outputTornado)
+                    .transferToHost(DataTransferMode.EVERY_EXECUTION, outputTornado);
+
             try (TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
 
                 TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
@@ -392,7 +340,7 @@ public class Mandelbrot extends Benchmark {
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    validate(i, outputSeq, outputTornadoVM, size);
+                    validate(i, outputTornado, outputReference);
                 }
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);
@@ -400,22 +348,17 @@ public class Mandelbrot extends Benchmark {
         }
 
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, implementationsToCompare, "mandelbrot", Config.HEADER1);
+            Utils.dumpPerformanceTable(timers, implementationsToCompare, "matrixTranspose", Config.HEADER1);
         }
     }
 
     @Override
     String getName() {
-        return "Mandelbrot";
+        return "MatrixTranspose";
     }
 
     @Override
     String printSize() {
         return getSize() + "x" + getSize();
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-        Mandelbrot benchmark = new Mandelbrot();
-        benchmark.run(args);
     }
 }

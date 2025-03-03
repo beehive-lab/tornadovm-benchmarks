@@ -32,7 +32,7 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
 
         if (args.length > 0) {
-            TornadoBenchmark benchmark;
+            Benchmark benchmark;
             String benchmarkName = args[0];
 
             switch (benchmarkName) {
@@ -41,6 +41,7 @@ public class Main {
                 case "montecarlo" -> benchmark = new Montecarlo();
                 case "mandelbrot" -> benchmark = new Mandelbrot();
                 case "mxv" -> benchmark = new MatrixVector();
+                case "mt" -> benchmark = new MatrixTranspose();
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
             // remove element 0 from the list
@@ -50,12 +51,13 @@ public class Main {
         } else {
             System.out.println("[TornadoVM Benchmarks] Running all benchmarks...");
 
-            TornadoBenchmark[] benchmarks = new TornadoBenchmark[5];
+            Benchmark[] benchmarks = new Benchmark[6];
             benchmarks[0] = new MatrixMultiplication();
             benchmarks[1] = new DFT();
             benchmarks[2] = new Montecarlo();
             benchmarks[3] = new Mandelbrot();
             benchmarks[4] = new MatrixVector();
+            benchmarks[5] = new MatrixTranspose();
 
             Arrays.stream(benchmarks).forEach(benchmark -> {
                 try {

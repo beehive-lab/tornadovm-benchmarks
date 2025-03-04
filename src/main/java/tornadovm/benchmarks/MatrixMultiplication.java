@@ -255,7 +255,6 @@ public class MatrixMultiplication extends Benchmark {
             TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
 
             TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
-            executionPlan.withDevice(device);
 
             WorkerGrid workerGrid = new WorkerGrid2D(a.getNumRows(), a.getNumColumns());
             workerGrid.setLocalWork(8, 8, 1);

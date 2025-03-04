@@ -35,14 +35,10 @@ import org.openjdk.jmh.runner.options.TimeValue;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
-import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
-import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
-import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -55,11 +51,22 @@ import java.util.stream.IntStream;
  *     </code>
  * </p>
  */
-public class Montecarlo extends Benchmark {
+public class Montecarlo extends BenchmarkDriver {
 
     static final int SIZE = 16777216 * 8;
 
-    private static void computeSequential(FloatArray output, int iterations) {
+    FloatArray outputRef;
+    FloatArray output;
+    int iterations;
+
+    public Montecarlo() {
+        outputRef = new FloatArray(SIZE);
+        output = new FloatArray(SIZE);
+        iterations = SIZE;
+    }
+
+    @Override
+    public void computeSequential() {
         for (@Parallel int j = 0; j < iterations; j++) {
             long seed = j;
             // generate a pseudo random number (you do need it twice)
@@ -76,14 +83,15 @@ public class Montecarlo extends Benchmark {
 
             float dist = (float) Math.sqrt(x * x + y * y);
             if (dist <= 1.0f) {
-                output.set(j, 1.0f);
+                outputRef.set(j, 1.0f);
             } else {
-                output.set(j, 0.0f);
+                outputRef.set(j, 0.0f);
             }
         }
     }
 
-    private static void computeWithJavaStreams(FloatArray output, final int iterations) {
+    @Override
+    public void computeWithJavaStreams() {
         IntStream.range(0, iterations).parallel().forEach(j -> {
             long seed = j;
             // generate a pseudo random number (you do need it twice)
@@ -107,8 +115,8 @@ public class Montecarlo extends Benchmark {
         });
     }
 
-    private static void computeWithJavaThreads(FloatArray output) throws InterruptedException {
-
+    @Override
+    public void computeWithJavaThreads() throws InterruptedException {
         Range[] ranges = Utils.createRangesForCPU(output.getSize());
         final int maxProcessors = Runtime.getRuntime().availableProcessors();
 
@@ -148,7 +156,8 @@ public class Montecarlo extends Benchmark {
         }
     }
 
-    private static void computeWithParallelVectorAPI(FloatArray output, final int iterations) {
+    @Override
+    public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
         for (int j = 0; j < iterations; j+= species.length()) {
 
@@ -186,7 +195,20 @@ public class Montecarlo extends Benchmark {
         }
     }
 
-    private static void computeWithTornadoVM(FloatArray output, final int iterations) {
+    @Override
+    public TornadoExecutionPlan buildExecutionPlan() {
+        TaskGraph taskGraph = new TaskGraph("benchmark")
+            .task("montecarlo", this::computeWithTornadoVM, output, SIZE)
+            .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
+        return new TornadoExecutionPlan(taskGraph.snapshot());
+    }
+
+    @Override
+    public void validate(int i) {
+        validate(i, outputRef, output);
+    }
+
+    public void computeWithTornadoVM(FloatArray output, final int iterations) {
         for (@Parallel int j = 0; j < iterations; j++) {
             long seed = j;
             // generate a pseudo random number (you do need it twice)
@@ -243,7 +265,7 @@ public class Montecarlo extends Benchmark {
             montecarlo = new Montecarlo();
             output = new FloatArray(size);
             TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .task("montecarlo", Montecarlo::computeWithTornadoVM, output, SIZE)
+                    .task("montecarlo", montecarlo::computeWithTornadoVM, output, SIZE)
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
             executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
         }
@@ -255,7 +277,7 @@ public class Montecarlo extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void montecarloSequential(JMHBenchmark state) {
-            computeSequential(state.output, SIZE);
+            state.montecarlo.computeSequential();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -265,7 +287,7 @@ public class Montecarlo extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void montecarloParallelStreams(JMHBenchmark state) {
-            state.montecarlo.computeWithJavaStreams(state.output, SIZE);
+            state.montecarlo.computeWithJavaStreams();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -275,7 +297,7 @@ public class Montecarlo extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void montecarloParallelThreads(JMHBenchmark state) throws InterruptedException {
-            state.montecarlo.computeWithJavaThreads(state.output);
+            state.montecarlo.computeWithJavaThreads();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -285,7 +307,7 @@ public class Montecarlo extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void montecarloParallelVectorAPI(JMHBenchmark state) {
-            state.montecarlo.computeWithParallelVectorAPI(state.output, SIZE);
+            state.montecarlo.computeWithParallelVectorAPI();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -317,111 +339,6 @@ public class Montecarlo extends Benchmark {
                 .forks(1) //
                 .build();
         new Runner(opt).run();
-    }
-
-    @Override
-    void runTestAll(final int size, Option option) throws InterruptedException {
-
-        FloatArray outputSeq = new FloatArray(size);
-        FloatArray outputStream = new FloatArray(size);
-        FloatArray outputThreads = new FloatArray(size);
-        FloatArray outputVector = new FloatArray(size);
-        FloatArray outputTornadoVM = new FloatArray(size);
-
-
-        // 5 implementations to compare
-        final int implementationsToCompare = 5;
-        ArrayList<ArrayList<Long>> timers = IntStream.range(0, implementationsToCompare) //
-                .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
-                .collect(Collectors.toCollection(ArrayList::new));
-
-        for (int i = 0; i < Config.RUNS; i++) {
-            long start = System.nanoTime();
-            computeSequential(outputSeq, SIZE);
-            long end = System.nanoTime();
-            long elapsedTime = (end - start);
-            timers.get(0).add(elapsedTime);
-            double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-            System.out.println("Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-
-            if (option == Option.TORNADO_ONLY) {
-                // We only run one iteration just to run the reference implementation to check results.
-                break;
-            }
-        }
-
-        if (option == Option.ALL || option == Option.JAVA_ONLY) {
-            // 2. Parallel Streams
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                computeWithJavaStreams(outputStream, SIZE);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(1).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, outputSeq, outputStream);
-            }
-
-            // 3. Parallel with Java Threads
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                computeWithJavaThreads(outputThreads);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(2).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, outputSeq, outputThreads);
-            }
-
-            // 4. Parallel with Java Vector API
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                computeWithParallelVectorAPI(outputVector, SIZE);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(3).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, outputSeq, outputVector);
-            }
-        }
-
-        if (option == Option.ALL || option == Option.TORNADO_ONLY) {
-            // TornadoVM
-            TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .task("montecarlo", Montecarlo::computeWithTornadoVM, outputTornadoVM, SIZE)
-                    .transferToHost(DataTransferMode.EVERY_EXECUTION, outputTornadoVM);
-            try (TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
-
-                TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
-                executionPlan.withDevice(device);
-
-                // 5. On the GPU using TornadoVM
-                for (int i = 0; i < Config.RUNS; i++) {
-                    long start = System.nanoTime();
-                    executionPlan.execute();
-                    long end = System.nanoTime();
-                    long elapsedTime = (end - start);
-                    timers.get(4).add(elapsedTime);
-                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                    System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    validate(i, outputSeq, outputTornadoVM);
-                }
-            } catch (TornadoExecutionPlanException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, implementationsToCompare, "montecarlo", Config.HEADER1);
-        }
     }
 
     @Override

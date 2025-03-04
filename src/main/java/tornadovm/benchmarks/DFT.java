@@ -56,7 +56,7 @@ import java.util.stream.IntStream;
  */
 public class DFT extends Benchmark {
 
-    final static int SIZE = 8192;
+    final static int SIZE = 1024;
 
     public static void computeSequential(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
         int n = inreal.getSize();

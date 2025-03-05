@@ -16,6 +16,10 @@
  */
 package tornadovm.benchmarks;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,10 +27,11 @@ public class Catalog {
 
     public static final Map<BenchmarkID, DefaultCatalog> DEFAULT = new HashMap<>();
 
-    public record DefaultCatalog(int dimensions, int size) {}
+    public record DefaultCatalog(int dimensions, int size, BufferedImage image) {}
 
     public enum BenchmarkID {
         Blackscholes("Blackscholes"),
+        BlurFilter("blurfilter"),
         DFT("dft"),
         Mandelbrot("mandelbrot"),
         MatrixMul("mxm"),
@@ -44,14 +49,23 @@ public class Catalog {
         }
     }
 
+    private static BufferedImage loadImage(String path) {
+        try {
+            return ImageIO.read(new File(path));
+        } catch (IOException e) {
+            throw new RuntimeException("Input file not found: " + path);
+        }
+    }
+
     static {
-        DEFAULT.put(BenchmarkID.Blackscholes, new DefaultCatalog(1, 8192 * 4096));
-        DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192));
-        DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 8192));
-        DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024));
-        DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192));
-        DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2));
-        DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8));
+        DEFAULT.put(BenchmarkID.Blackscholes, new DefaultCatalog(1, 8192 * 4096, null));
+        DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpeg")));  // TODO: pass the image
+        DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192, null));
+        DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 8192, null));
+        DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024,null));
+        DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192,null));
+        DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2, null));
+        DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8, null));
     }
 
     private Catalog() {}

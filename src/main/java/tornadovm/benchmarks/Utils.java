@@ -78,7 +78,12 @@ public class Utils {
             for (int i = 0; i < Config.RUNS; i++) {
                 StringBuilder builder = new StringBuilder();
                 for (int j = 0; j < implementationsToCompare; j++) {
-                    builder.append(timers.get(j).get(i)).append(",");
+                    if (timers.get(j).size() > i) {
+                        builder.append(timers.get(j).get(i)).append(",");
+                    } else {
+                        // It can be missing due to the selection of a specific implementation
+                        builder.append("-1,");
+                    }
                 }
                 fileWriter.write(builder.substring(0, builder.length() - 1));
                 fileWriter.write("\n");

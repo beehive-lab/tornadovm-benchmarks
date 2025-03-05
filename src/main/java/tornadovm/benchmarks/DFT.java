@@ -52,7 +52,7 @@ import java.util.stream.IntStream;
  */
 public class DFT extends BenchmarkDriver {
 
-    final static int SIZE = 8102;
+    int size;
     private FloatArray inreal;
     private FloatArray inimag;
     private FloatArray outrealRef;
@@ -60,8 +60,8 @@ public class DFT extends BenchmarkDriver {
     private FloatArray outreal;
     private FloatArray outimag;
 
-    public DFT() {
-        int size = SIZE;
+    public DFT(int size) {
+        this.size = size;
         inreal = new FloatArray(size);
         inimag = new FloatArray(size);
         outreal = new FloatArray(size);
@@ -177,7 +177,7 @@ public class DFT extends BenchmarkDriver {
 
     @Override
     public void validate(int i) {
-        validate(i, SIZE, outrealRef, outimagRef, outreal, outimag);
+        validate(i, size, outrealRef, outimagRef, outreal, outimag);
     }
 
     @Override
@@ -251,7 +251,7 @@ public class DFT extends BenchmarkDriver {
 
         @Setup(Level.Trial)
         public void doSetup() {
-            dft = new DFT();
+            dft = new DFT(Catalog.DEFAULT.get("dft").size());
             executionPlan = dft.buildExecutionPlan();
         }
 
@@ -312,7 +312,7 @@ public class DFT extends BenchmarkDriver {
 
     @Override
     int getSize() {
-        return SIZE;
+        return size;
     }
 
     @Override
@@ -341,7 +341,7 @@ public class DFT extends BenchmarkDriver {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        DFT benchmark = new DFT();
+        DFT benchmark = new DFT(Catalog.DEFAULT.get("dft").size());
         benchmark.run(args);
     }
 }

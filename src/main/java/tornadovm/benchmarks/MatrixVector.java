@@ -63,8 +63,10 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
  */
 public class MatrixVector extends Benchmark {
 
-    // Change this value to adapt the matrix size (size x size)
-    final static int SIZE = 8192 * 2;
+    private int size = 8192 * 2;
+    public MatrixVector(int size) {
+        this.size = size;
+    }
 
     /**
      * Float MxN Matrix
@@ -407,7 +409,7 @@ public class MatrixVector extends Benchmark {
 
     @Override
     int getSize() {
-        return SIZE;
+        return size;
     }
 
     @Override
@@ -555,7 +557,7 @@ public class MatrixVector extends Benchmark {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        MatrixVector benchmark = new MatrixVector();
+        MatrixVector benchmark = new MatrixVector(Catalog.DEFAULT.get("mxv").size());
         benchmark.run(args);
     }
 }

@@ -36,7 +36,6 @@ import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
-import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
 
 import java.nio.ByteOrder;
@@ -53,18 +52,19 @@ import java.util.stream.IntStream;
  */
 public class MatrixTranspose extends BenchmarkDriver {
 
-    final static int SIZE = 8192;
+    int size = 8192;
     Matrix2DFloat a;
     Matrix2DFloat refOutput;
     Matrix2DFloat output;
 
-    public MatrixTranspose() {
-        a = new Matrix2DFloat(SIZE, SIZE);
-        refOutput = new Matrix2DFloat(SIZE, SIZE);
-        output = new Matrix2DFloat(SIZE, SIZE);
+    public MatrixTranspose(int size) {
+        this.size = size;
+        a = new Matrix2DFloat(size, size);
+        refOutput = new Matrix2DFloat(size, size);
+        output = new Matrix2DFloat(size, size);
         Random r = new Random(71);
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
                 a.set(i, j, r.nextFloat());
             }
         }
@@ -90,7 +90,7 @@ public class MatrixTranspose extends BenchmarkDriver {
 
     @Override
     public void computeWithJavaThreads() throws InterruptedException {
-        Range[] ranges = Utils.createRangesForCPU(SIZE);
+        Range[] ranges = Utils.createRangesForCPU(size);
         int maxProcessors = Runtime.getRuntime().availableProcessors();
         Thread[] threads = new Thread[maxProcessors];
 
@@ -180,20 +180,18 @@ public class MatrixTranspose extends BenchmarkDriver {
 
     @Override
     int getSize() {
-        return SIZE;
+        return size;
     }
 
     @State(Scope.Thread)
     public static class JMHBenchmark {
 
         private MatrixTranspose matrixTranspose;
-        private Matrix2DFloat matrix;
-        private Matrix2DFloat output;
         private TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
         public void doSetup() {
-            matrixTranspose = new MatrixTranspose();
+            matrixTranspose = new MatrixTranspose(Catalog.DEFAULT.get("mt").size());
             executionPlan = matrixTranspose.buildExecutionPlan();
         }
 

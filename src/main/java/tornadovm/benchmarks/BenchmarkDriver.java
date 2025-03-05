@@ -5,8 +5,6 @@ import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 
 import java.util.ArrayList;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public abstract class BenchmarkDriver extends Benchmark {
 
@@ -28,18 +26,18 @@ public abstract class BenchmarkDriver extends Benchmark {
     void runTestAll(int size, Option option) throws InterruptedException {
 
         final int implementationsToCompare = 5;
-        // 6 implementations to compare
-        ArrayList<ArrayList<Long>> timers = IntStream.range(0, implementationsToCompare) //
-                .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
-                .collect(Collectors.toCollection(ArrayList::new));
+        ArrayList<ArrayList<Long>> timers = new ArrayList<>();
+        StringBuilder headerTable = new StringBuilder();
 
         // 1. Sequential
+        timers.add(new ArrayList<>());
+        headerTable.append("sequential");
         for (int i = 0; i < Config.RUNS; i++) {
             long start = System.nanoTime();
             computeSequential();
             long end = System.nanoTime();
             long elapsedTime = (end - start);
-            timers.get(0).add(elapsedTime);
+            timers.getLast().add(elapsedTime);
             double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
             System.out.println("Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) ");
@@ -53,12 +51,14 @@ public abstract class BenchmarkDriver extends Benchmark {
         resetOutputs();
         if (option == Option.ALL || option == Option.JAVA_ONLY) {
             // 2. Parallel Streams
+            timers.add(new ArrayList<>());
+            headerTable.append(",streams");
             for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 computeWithJavaStreams();
                 long end = System.nanoTime();
                 long elapsedTime = (end - start);
-                timers.get(1).add(elapsedTime);
+                timers.getLast().add(elapsedTime);
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
@@ -67,12 +67,14 @@ public abstract class BenchmarkDriver extends Benchmark {
 
             // 3. Parallel with Java Threads
             resetOutputs();
+            timers.add(new ArrayList<>());
+            headerTable.append(",threads");
             for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 computeWithJavaThreads();
                 long end = System.nanoTime();
                 long elapsedTime = (end - start);
-                timers.get(2).add(elapsedTime);
+                timers.getLast().add(elapsedTime);
                 double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                 System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
@@ -81,13 +83,15 @@ public abstract class BenchmarkDriver extends Benchmark {
 
             // 4. Parallel with Java Vector API
             resetOutputs();
+            timers.add(new ArrayList<>());
+            headerTable.append(",parallelVectorAPI");
             for (int i = 0; i < Config.RUNS; i++) {
                 try {
                     long start = System.nanoTime();
                     computeWithParallelVectorAPI();
                     long end = System.nanoTime();
                     long elapsedTime = (end - start);
-                    timers.get(3).add(elapsedTime);
+                    timers.getLast().add(elapsedTime);
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
@@ -95,15 +99,16 @@ public abstract class BenchmarkDriver extends Benchmark {
                 } catch (RuntimeException e) {
                     System.out.println("Error - Parallel Vector API: " + e.getMessage());
                     // We store -1 in the timers list to indicate that an error has occurred.
-                    timers.get(3).add((long) -1);
+                    timers.getLast().add((long) -1);
                 }
             }
         }
 
         if (option == Option.ALL || option == Option.TORNADO_ONLY) {
-
             try (TornadoExecutionPlan executionPlan = buildExecutionPlan()) {
                 resetOutputs();
+                timers.add(new ArrayList<>());
+                headerTable.append(",TornadoVM");
                 TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
                 executionPlan.withDevice(device);
 
@@ -113,7 +118,7 @@ public abstract class BenchmarkDriver extends Benchmark {
                     executionPlan.execute();
                     long end = System.nanoTime();
                     long elapsedTime = (end - start);
-                    timers.get(4).add(elapsedTime);
+                    timers.getLast().add(elapsedTime);
                     double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
@@ -124,9 +129,7 @@ public abstract class BenchmarkDriver extends Benchmark {
             }
         }
 
-        if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, implementationsToCompare, getName(), Config.HEADER1);
-        }
+        Utils.dumpPerformanceTable(timers, timers.size(), getName(), headerTable.append("\n").toString());
     }
 
 }

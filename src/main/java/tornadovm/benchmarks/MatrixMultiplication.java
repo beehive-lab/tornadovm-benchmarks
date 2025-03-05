@@ -62,11 +62,14 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
  */
 public class MatrixMultiplication extends Benchmark {
 
-    // Change this value to adapt the matrix size (size x size)
-    final static int SIZE = 1024;
-
-    private final static double FLOP = 2 * Math.pow(SIZE, 3);
+    int size;
+    private double FLOP;
     private final static float TIME_SCALE_SECS = 1.0E09f;
+
+    public MatrixMultiplication(int size) {
+        this.size = size;
+        FLOP = 2 * Math.pow(size, 3);
+    }
 
     /**
      * Float MxN Matrix
@@ -423,7 +426,7 @@ public class MatrixMultiplication extends Benchmark {
 
     @Override
     int getSize() {
-        return SIZE;
+        return size;
     }
 
     @Override
@@ -591,7 +594,7 @@ public class MatrixMultiplication extends Benchmark {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        MatrixMultiplication benchmark = new MatrixMultiplication();
+        MatrixMultiplication benchmark = new MatrixMultiplication(Catalog.DEFAULT.get("mxm").size());
         benchmark.run(args);
     }
 }

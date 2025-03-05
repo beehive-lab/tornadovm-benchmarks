@@ -53,16 +53,17 @@ import java.util.stream.IntStream;
  */
 public class Montecarlo extends BenchmarkDriver {
 
-    static final int SIZE = 16777216 * 8;
+    int size;
 
     FloatArray outputRef;
     FloatArray output;
     int iterations;
 
-    public Montecarlo() {
-        outputRef = new FloatArray(SIZE);
-        output = new FloatArray(SIZE);
-        iterations = SIZE;
+    public Montecarlo(int size) {
+        this.size = size;
+        outputRef = new FloatArray(size);
+        output = new FloatArray(size);
+        iterations = size;
     }
 
     @Override
@@ -198,7 +199,7 @@ public class Montecarlo extends BenchmarkDriver {
     @Override
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
-            .task("montecarlo", this::computeWithTornadoVM, output, SIZE)
+            .task("montecarlo", this::computeWithTornadoVM, output, size)
             .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }
@@ -262,7 +263,7 @@ public class Montecarlo extends BenchmarkDriver {
 
         @Setup(Level.Trial)
         public void doSetup() {
-            montecarlo = new Montecarlo();
+            montecarlo = new Montecarlo(Catalog.DEFAULT.get("montecarlo").size());
             executionPlan = montecarlo.buildExecutionPlan();
         }
 
@@ -319,7 +320,7 @@ public class Montecarlo extends BenchmarkDriver {
 
     @Override
     int getSize() {
-        return SIZE;
+        return size;
     }
 
     @Override
@@ -348,7 +349,7 @@ public class Montecarlo extends BenchmarkDriver {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        Montecarlo benchmark = new Montecarlo();
+        Montecarlo benchmark = new Montecarlo(Catalog.DEFAULT.get("montecarlo").size());
         benchmark.run(args);
     }
 }

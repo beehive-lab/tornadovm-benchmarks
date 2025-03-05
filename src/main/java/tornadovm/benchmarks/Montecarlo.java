@@ -263,7 +263,7 @@ public class Montecarlo extends BenchmarkDriver {
 
         @Setup(Level.Trial)
         public void doSetup() {
-            montecarlo = new Montecarlo(Catalog.DEFAULT.get("montecarlo").size());
+            montecarlo = new Montecarlo(Catalog.DEFAULT.get(Catalog.BenchmarkID.Montecarlo).size());
             executionPlan = montecarlo.buildExecutionPlan();
         }
 
@@ -349,7 +349,7 @@ public class Montecarlo extends BenchmarkDriver {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        Montecarlo benchmark = new Montecarlo(Catalog.DEFAULT.get("montecarlo").size());
+        Montecarlo benchmark = new Montecarlo(Catalog.DEFAULT.get(Catalog.BenchmarkID.Montecarlo).size());
         benchmark.run(args);
     }
 }

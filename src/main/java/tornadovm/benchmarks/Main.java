@@ -36,12 +36,12 @@ public class Main {
             String benchmarkName = args[0];
 
             switch (benchmarkName) {
-                case "mxm" -> benchmark = new MatrixMultiplication(Catalog.DEFAULT.get("mxm").size());
-                case "dft" -> benchmark = new DFT(Catalog.DEFAULT.get("dft").size());
-                case "montecarlo" -> benchmark = new Montecarlo(Catalog.DEFAULT.get("montecarlo").size());
-                case "mandelbrot" -> benchmark = new Mandelbrot(Catalog.DEFAULT.get("mandelbrot").size());
-                case "mxv" -> benchmark = new MatrixVector(Catalog.DEFAULT.get("mxv").size());
-                case "mt" -> benchmark = new MatrixTranspose(Catalog.DEFAULT.get("mt").size());
+                case "mxm" -> benchmark = new MatrixMultiplication(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMul).size());
+                case "dft" -> benchmark = new DFT(Catalog.DEFAULT.get(Catalog.BenchmarkID.DFT).size());
+                case "montecarlo" -> benchmark = new Montecarlo(Catalog.DEFAULT.get(Catalog.BenchmarkID.Montecarlo).size());
+                case "mandelbrot" -> benchmark = new Mandelbrot(Catalog.DEFAULT.get(Catalog.BenchmarkID.Mandelbrot).size());
+                case "mxv" -> benchmark = new MatrixVector(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixVector).size());
+                case "mt" -> benchmark = new MatrixTranspose(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixTranspose).size());
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
             // remove element 0 from the list
@@ -52,12 +52,12 @@ public class Main {
             System.out.println("[TornadoVM Benchmarks] Running all benchmarks...");
 
             Benchmark[] benchmarks = new Benchmark[6];
-            benchmarks[0] = new MatrixMultiplication(Catalog.DEFAULT.get("mxm").size());
-            benchmarks[1] = new DFT(Catalog.DEFAULT.get("dft").size());
-            benchmarks[2] = new Montecarlo(Catalog.DEFAULT.get("montecarlo").size());
-            benchmarks[3] = new Mandelbrot(Catalog.DEFAULT.get("mandelbrot").size());
-            benchmarks[4] = new MatrixVector(Catalog.DEFAULT.get("mxv").size());
-            benchmarks[5] = new MatrixTranspose(Catalog.DEFAULT.get("mt").size());
+            benchmarks[0] = new MatrixMultiplication(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMul).size());
+            benchmarks[1] = new DFT(Catalog.DEFAULT.get(Catalog.BenchmarkID.DFT).size());
+            benchmarks[2] = new Montecarlo(Catalog.DEFAULT.get(Catalog.BenchmarkID.Montecarlo).size());
+            benchmarks[3] = new Mandelbrot(Catalog.DEFAULT.get(Catalog.BenchmarkID.Mandelbrot).size());
+            benchmarks[4] = new MatrixVector(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixVector).size());
+            benchmarks[5] = new MatrixTranspose(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixTranspose).size());
 
             Arrays.stream(benchmarks).forEach(benchmark -> {
                 try {

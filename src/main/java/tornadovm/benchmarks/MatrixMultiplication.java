@@ -322,8 +322,6 @@ public class MatrixMultiplication extends Benchmark {
     @State(Scope.Thread)
     public static class JMHBenchmark {
 
-        MatrixMultiplication matrixMultiplication;
-
         FloatMatrix matrixA;
         FloatMatrix matrixB;
 
@@ -594,7 +592,7 @@ public class MatrixMultiplication extends Benchmark {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        MatrixMultiplication benchmark = new MatrixMultiplication(Catalog.DEFAULT.get("mxm").size());
+        MatrixMultiplication benchmark = new MatrixMultiplication(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMul).size());
         benchmark.run(args);
     }
 }

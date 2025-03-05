@@ -241,7 +241,7 @@ public class Mandelbrot extends BenchmarkDriver {
 
         @Setup(Level.Trial)
         public void doSetup() {
-            benchmark = new Mandelbrot(Catalog.DEFAULT.get("mandelbrot").size());
+            benchmark = new Mandelbrot(Catalog.DEFAULT.get(Catalog.BenchmarkID.Mandelbrot).size());
             executionPlan = benchmark.buildExecutionPlan();
         }
 
@@ -327,7 +327,7 @@ public class Mandelbrot extends BenchmarkDriver {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        Mandelbrot benchmark = new Mandelbrot(Catalog.DEFAULT.get("mandelbrot").size());
+        Mandelbrot benchmark = new Mandelbrot(Catalog.DEFAULT.get(Catalog.BenchmarkID.Mandelbrot).size());
         benchmark.run(args);
     }
 }

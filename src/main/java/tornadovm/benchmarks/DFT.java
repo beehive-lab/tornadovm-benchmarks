@@ -52,7 +52,7 @@ import java.util.stream.IntStream;
  */
 public class DFT extends BenchmarkDriver {
 
-    int size;
+    private int size;
     private FloatArray inreal;
     private FloatArray inimag;
     private FloatArray outrealRef;
@@ -251,7 +251,7 @@ public class DFT extends BenchmarkDriver {
 
         @Setup(Level.Trial)
         public void doSetup() {
-            dft = new DFT(Catalog.DEFAULT.get("dft").size());
+            dft = new DFT(Catalog.DEFAULT.get(Catalog.BenchmarkID.DFT).size());
             executionPlan = dft.buildExecutionPlan();
         }
 
@@ -341,7 +341,7 @@ public class DFT extends BenchmarkDriver {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        DFT benchmark = new DFT(Catalog.DEFAULT.get("dft").size());
+        DFT benchmark = new DFT(Catalog.DEFAULT.get(Catalog.BenchmarkID.DFT).size());
         benchmark.run(args);
     }
 }

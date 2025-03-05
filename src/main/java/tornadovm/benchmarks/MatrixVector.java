@@ -63,7 +63,7 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
  */
 public class MatrixVector extends Benchmark {
 
-    private int size = 8192 * 2;
+    private int size;
     public MatrixVector(int size) {
         this.size = size;
     }
@@ -557,7 +557,7 @@ public class MatrixVector extends Benchmark {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        MatrixVector benchmark = new MatrixVector(Catalog.DEFAULT.get("mxv").size());
+        MatrixVector benchmark = new MatrixVector(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixVector).size());
         benchmark.run(args);
     }
 }

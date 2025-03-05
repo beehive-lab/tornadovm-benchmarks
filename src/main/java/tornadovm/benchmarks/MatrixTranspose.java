@@ -191,7 +191,7 @@ public class MatrixTranspose extends BenchmarkDriver {
 
         @Setup(Level.Trial)
         public void doSetup() {
-            matrixTranspose = new MatrixTranspose(Catalog.DEFAULT.get("mt").size());
+            matrixTranspose = new MatrixTranspose(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixTranspose).size());
             executionPlan = matrixTranspose.buildExecutionPlan();
         }
 
@@ -270,5 +270,10 @@ public class MatrixTranspose extends BenchmarkDriver {
     @Override
     String printSize() {
         return getSize() + "x" + getSize();
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        MatrixTranspose benchmark = new MatrixTranspose(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixTranspose).size());
+        benchmark.run(args);
     }
 }

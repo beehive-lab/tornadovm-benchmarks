@@ -68,7 +68,6 @@ public class MatrixMultiplication extends Benchmark {
     private final static double FLOP = 2 * Math.pow(SIZE, 3);
     private final static float TIME_SCALE_SECS = 1.0E09f;
 
-
     /**
      * Float MxN Matrix
      */

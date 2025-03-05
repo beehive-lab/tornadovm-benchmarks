@@ -210,9 +210,9 @@ public class Blackscholes extends BenchmarkDriver {
 
     @Override
     public TornadoExecutionPlan buildExecutionPlan()  {
-        TaskGraph taskGraph = new TaskGraph("s0") //
+        TaskGraph taskGraph = new TaskGraph("bechmark") //
                 .transferToDevice(DataTransferMode.EVERY_EXECUTION, input) //
-                .task("t0", this::blackScholesKernel, input, callResult, putResult) //
+                .task("blackscholes", this::blackScholesKernel, input, callResult, putResult) //
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, callResult, putResult);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

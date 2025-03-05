@@ -222,11 +222,11 @@ public class BlurFilter extends BenchmarkDriver {
 
     @Override
     public TornadoExecutionPlan buildExecutionPlan() {
-        TaskGraph taskGraph = new TaskGraph("blur") //
+        TaskGraph taskGraph = new TaskGraph("benchmark") //
                 .transferToDevice(DataTransferMode.FIRST_EXECUTION, redChannel, greenChannel, blueChannel, filter) //
-                .task("red", BlurFilter::compute, redChannel, redFilter, w, h, filter, FILTER_WIDTH) //
-                .task("green", BlurFilter::compute, greenChannel, greenFilter, w, h, filter, FILTER_WIDTH) //
-                .task("blue", BlurFilter::compute, blueChannel, blueFilter, w, h, filter, FILTER_WIDTH) //
+                .task("br", BlurFilter::compute, redChannel, redFilter, w, h, filter, FILTER_WIDTH) //
+                .task("bg", BlurFilter::compute, greenChannel, greenFilter, w, h, filter, FILTER_WIDTH) //
+                .task("bb", BlurFilter::compute, blueChannel, blueFilter, w, h, filter, FILTER_WIDTH) //
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, redFilter, greenFilter, blueFilter);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

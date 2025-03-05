@@ -44,6 +44,7 @@ public class Main {
                 case "mt" -> benchmark = new MatrixTranspose(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixTranspose).size());
                 case "blackscholes" -> benchmark = new Blackscholes(Catalog.DEFAULT.get(Catalog.BenchmarkID.Blackscholes).size());
                 case "blurfilter" -> benchmark = new BlurFilter(Catalog.DEFAULT.get(Catalog.BenchmarkID.BlurFilter).image());
+                case "saxpy" -> benchmark = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
             // remove element 0 from the list
@@ -53,7 +54,7 @@ public class Main {
         } else {
             System.out.println("[TornadoVM Benchmarks] Running all benchmarks...");
 
-            Benchmark[] benchmarks = new Benchmark[8];
+            Benchmark[] benchmarks = new Benchmark[Catalog.BenchmarkID.values().length];
             benchmarks[0] = new MatrixMultiplication(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMul).size());
             benchmarks[1] = new DFT(Catalog.DEFAULT.get(Catalog.BenchmarkID.DFT).size());
             benchmarks[2] = new Montecarlo(Catalog.DEFAULT.get(Catalog.BenchmarkID.Montecarlo).size());
@@ -62,6 +63,7 @@ public class Main {
             benchmarks[5] = new MatrixTranspose(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixTranspose).size());
             benchmarks[6] = new Blackscholes(Catalog.DEFAULT.get(Catalog.BenchmarkID.Blackscholes).size());
             benchmarks[6] = new BlurFilter(Catalog.DEFAULT.get(Catalog.BenchmarkID.BlurFilter).image());
+            benchmarks[7] = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
 
             Arrays.stream(benchmarks).forEach(benchmark -> {
                 try {

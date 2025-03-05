@@ -577,7 +577,7 @@ public class MatrixMultiplication extends Benchmark {
             }
         }
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, 6, "mxm", Config.HEADER2);
+            Utils.dumpPerformanceTable(timers, 6, "mxm", Config.HEADER);
         }
     }
 

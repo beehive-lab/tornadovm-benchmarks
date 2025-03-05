@@ -542,7 +542,7 @@ public class MatrixVector extends Benchmark {
             }
         }
         if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, 6, "matrixVector", Config.HEADER2);
+            Utils.dumpPerformanceTable(timers, 6, "matrixVector", Config.HEADER);
         }
     }
 

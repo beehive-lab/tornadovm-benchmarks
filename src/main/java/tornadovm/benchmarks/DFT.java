@@ -36,16 +36,12 @@ import org.openjdk.jmh.runner.options.TimeValue;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
-import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
-import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -54,11 +50,33 @@ import java.util.stream.IntStream;
  *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.DFT
  * </code>
  */
-public class DFT extends Benchmark {
+public class DFT extends BenchmarkDriver {
 
-    final static int SIZE = 1024;
+    final static int SIZE = 8102;
+    private FloatArray inreal;
+    private FloatArray inimag;
+    private FloatArray outrealRef;
+    private FloatArray outimagRef;
+    private FloatArray outreal;
+    private FloatArray outimag;
 
-    public static void computeSequential(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
+    public DFT() {
+        int size = SIZE;
+        inreal = new FloatArray(size);
+        inimag = new FloatArray(size);
+        outreal = new FloatArray(size);
+        outimag = new FloatArray(size);
+        outrealRef = new FloatArray(size);
+        outimagRef = new FloatArray(size);
+
+        for (int i = 0; i < size; i++) {
+            inreal.set(i, 1 / (float) (i + 2));
+            inimag.set(i, 1 / (float) (i + 2));
+        }
+    }
+
+    @Override
+    public void computeSequential() {
         int n = inreal.getSize();
         for (int k = 0; k < n; k++) { // For each output element
             float sumreal = 0;
@@ -68,12 +86,12 @@ public class DFT extends Benchmark {
                 sumreal += (inreal.get(t) * (TornadoMath.cos(angle)) + inimag.get(t) * (TornadoMath.sin(angle)));
                 sumimag += -(inreal.get(t) * (TornadoMath.sin(angle)) + inimag.get(t) * (TornadoMath.cos(angle)));
             }
-            outreal.set(k, sumreal);
-            outimag.set(k, sumimag);
+            outrealRef.set(k, sumreal);
+            outimagRef.set(k, sumimag);
         }
     }
 
-    public static void computeWithTornado(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
+    public void computeWithTornado(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
         int n = inreal.getSize();
         for (@Parallel int k = 0; k < n; k++) { // For each output element
             float sumreal = 0;
@@ -88,7 +106,8 @@ public class DFT extends Benchmark {
         }
     }
 
-    public void computeWithJavaStreams(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
+    @Override
+    public void computeWithJavaStreams() {
         int n = inreal.getSize();
         IntStream.range(0, n).parallel().forEach(k -> {
             float sumreal = 0;
@@ -103,7 +122,8 @@ public class DFT extends Benchmark {
         });
     }
 
-    public void computeWithParallelVectorAPI(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
+    @Override
+    public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
         final int FLOAT_BYTES = 4;
         int n = inreal.getSize();
@@ -140,7 +160,28 @@ public class DFT extends Benchmark {
         });
     }
 
-    public void computeWithJavaThreads(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) throws InterruptedException {
+    @Override
+    public TornadoExecutionPlan buildExecutionPlan() {
+        TaskGraph taskGraph = new TaskGraph("benchmark")
+                .transferToDevice(DataTransferMode.FIRST_EXECUTION, inreal, inimag)
+                .task("dft", this::computeWithTornado, inreal, inimag, outreal, outimag)
+                .transferToHost(DataTransferMode.EVERY_EXECUTION, outreal, outimag);
+        return new TornadoExecutionPlan(taskGraph.snapshot());
+    }
+
+    @Override
+    public void resetOutputs() {
+        outimagRef.init(0);
+        outrealRef.init(0);
+    }
+
+    @Override
+    public void validate(int i) {
+        validate(i, SIZE, outrealRef, outimagRef, outreal, outimag);
+    }
+
+    @Override
+    public void computeWithJavaThreads() throws InterruptedException {
         final int maxProcessors = Runtime.getRuntime().availableProcessors();
         Thread[] threads = new Thread[maxProcessors];
         int n = inreal.getSize();
@@ -195,7 +236,7 @@ public class DFT extends Benchmark {
 
     public void validate(int run, int size, FloatArray outRealRef, FloatArray outImaRef, FloatArray outReal, FloatArray outImag) {
         if (run == 0) {
-            System.out.println(" -- Result Correct? " + validate(SIZE, outRealRef, outImaRef, outReal, outImag));
+            System.out.println(" -- Result Correct? " + validate(size, outRealRef, outImaRef, outReal, outImag));
         } else {
             System.out.println();
         }
@@ -206,36 +247,12 @@ public class DFT extends Benchmark {
 
         private DFT dft;
 
-        private FloatArray inReal;
-        private FloatArray inImag;
-        private FloatArray outReal;
-        private FloatArray outImag;
-
         private TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
         public void doSetup() {
-            final int size = SIZE;
             dft = new DFT();
-
-            inReal = new FloatArray(size);
-            inImag = new FloatArray(size);
-            outReal = new FloatArray(size);
-            outImag = new FloatArray(size);
-
-            for (int i = 0; i < size; i++) {
-                inReal.set(i, 1 / (float) (i + 2));
-                inImag.set(i, 1 / (float) (i + 2));
-            }
-
-            FloatArray outRealTornado = new FloatArray(size);
-            FloatArray outImagTornado = new FloatArray(size);
-
-            TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .transferToDevice(DataTransferMode.FIRST_EXECUTION, inReal, inImag)
-                    .task("dft", DFT::computeWithTornado, inReal, inImag, outRealTornado, outImagTornado)
-                    .transferToHost(DataTransferMode.EVERY_EXECUTION, outRealTornado, outImagTornado);
-            executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
+            executionPlan = dft.buildExecutionPlan();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -245,7 +262,7 @@ public class DFT extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void dftSequential(JMHBenchmark state) {
-            computeSequential(state.inReal, state.inImag, state.outReal, state.outImag);
+            state.dft.computeSequential();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -255,7 +272,7 @@ public class DFT extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void dftParallelStreams(JMHBenchmark state) {
-            state.dft.computeWithJavaStreams(state.inReal, state.inImag, state.outReal, state.outImag);
+            state.dft.computeWithJavaStreams();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -266,7 +283,7 @@ public class DFT extends Benchmark {
         @Fork(1)
         public void dftParallelThreads(JMHBenchmark state) {
             try {
-                state.dft.computeWithJavaThreads(state.inReal, state.inImag, state.outReal, state.outImag);
+                state.dft.computeWithJavaThreads();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -279,7 +296,7 @@ public class DFT extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void dftParallelVectorAPI(JMHBenchmark state) {
-            state.dft.computeWithParallelVectorAPI(state.inReal, state.inImag, state.outReal, state.outImag);
+            state.dft.computeWithParallelVectorAPI();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -311,125 +328,6 @@ public class DFT extends Benchmark {
                 .forks(1) //
                 .build();
         new Runner(opt).run();
-    }
-
-    @Override
-    void runTestAll(final int size, Option option) throws InterruptedException {
-
-        FloatArray inReal = new FloatArray(size);
-        FloatArray inImag = new FloatArray(size);
-        FloatArray outRealSeq = new FloatArray(size);
-        FloatArray outImagSeq = new FloatArray(size);
-
-        for (int i = 0; i < size; i++) {
-            inReal.set(i, 1 / (float) (i + 2));
-            inImag.set(i, 1 / (float) (i + 2));
-        }
-
-        // 5 implementations to compare
-        final int implementationsToCompare = 5;
-        ArrayList<ArrayList<Long>> timers = IntStream.range(0, implementationsToCompare) //
-                .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
-                .collect(Collectors.toCollection(ArrayList::new));
-
-        for (int i = 0; i < Config.RUNS; i++) {
-            long start = System.nanoTime();
-            computeSequential(inReal, inImag, outRealSeq, outImagSeq);
-            long end = System.nanoTime();
-            long elapsedTime = (end - start);
-            timers.get(0).add(elapsedTime);
-            double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-            System.out.println("Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-
-            if (option == Option.TORNADO_ONLY) {
-                // We only run one iteration just to run the reference implementation to check results.
-                break;
-            }
-        }
-
-        if (option == Option.ALL || option == Option.JAVA_ONLY) {
-            // 2. Parallel Streams
-            FloatArray outRealStream = new FloatArray(size);
-            FloatArray outImagStream = new FloatArray(size);
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                computeWithJavaStreams(inReal, inImag, outRealStream, outImagStream);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(1).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, SIZE, outRealSeq, outImagSeq, outRealStream, outImagStream);
-            }
-
-            // 3. Parallel with Java Threads
-            FloatArray outRealThreads = new FloatArray(size);
-            FloatArray outImagThreads = new FloatArray(size);
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                computeWithJavaThreads(inReal, inImag, outRealThreads, outImagThreads);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(2).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, SIZE, outRealSeq, outImagSeq, outRealThreads, outImagThreads);
-            }
-
-            // 4. Parallel with Java Vector API
-            FloatArray outRealVector = new FloatArray(size);
-            FloatArray outImagVector = new FloatArray(size);
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                computeWithParallelVectorAPI(inReal, inImag, outRealVector, outImagVector);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(3).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                validate(i, SIZE, outRealSeq, outImagSeq, outRealVector, outImagVector);
-            }
-        }
-
-
-        if (option == Option.ALL || option == Option.TORNADO_ONLY) {
-            // TornadoVM
-            FloatArray outRealTornado = new FloatArray(size);
-            FloatArray outImagTornado = new FloatArray(size);
-
-            TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .transferToDevice(DataTransferMode.FIRST_EXECUTION, inReal, inImag)
-                    .task("dft", DFT::computeWithTornado, inReal, inImag, outRealTornado, outImagTornado)
-                    .transferToHost(DataTransferMode.EVERY_EXECUTION, outRealTornado, outImagTornado);
-            try (TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
-
-                TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
-                executionPlan.withDevice(device);
-
-                // 5. On the GPU using TornadoVM
-                for (int i = 0; i < Config.RUNS; i++) {
-                    long start = System.nanoTime();
-                    executionPlan.execute();
-                    long end = System.nanoTime();
-                    long elapsedTime = (end - start);
-                    timers.get(4).add(elapsedTime);
-                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                    System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                    validate(i, SIZE, outRealSeq, outImagSeq, outRealTornado, outImagTornado);
-                }
-            } catch (TornadoExecutionPlanException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, implementationsToCompare, "dft", Config.HEADER1);
-        }
     }
 
     @Override

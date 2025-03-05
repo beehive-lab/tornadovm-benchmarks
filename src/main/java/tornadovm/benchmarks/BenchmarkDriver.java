@@ -20,6 +20,8 @@ public abstract class BenchmarkDriver extends Benchmark {
 
     public abstract TornadoExecutionPlan buildExecutionPlan() throws TornadoExecutionPlanException;
 
+    public abstract void resetOutputs();
+
     public abstract void validate(int i);
 
     @Override
@@ -48,6 +50,7 @@ public abstract class BenchmarkDriver extends Benchmark {
             }
         }
 
+        resetOutputs();
         if (option == Option.ALL || option == Option.JAVA_ONLY) {
             // 2. Parallel Streams
             for (int i = 0; i < Config.RUNS; i++) {
@@ -63,6 +66,7 @@ public abstract class BenchmarkDriver extends Benchmark {
             }
 
             // 3. Parallel with Java Threads
+            resetOutputs();
             for (int i = 0; i < Config.RUNS; i++) {
                 long start = System.nanoTime();
                 computeWithJavaThreads();
@@ -76,6 +80,7 @@ public abstract class BenchmarkDriver extends Benchmark {
             }
 
             // 4. Parallel with Java Vector API
+            resetOutputs();
             for (int i = 0; i < Config.RUNS; i++) {
                 try {
                     long start = System.nanoTime();
@@ -98,7 +103,7 @@ public abstract class BenchmarkDriver extends Benchmark {
         if (option == Option.ALL || option == Option.TORNADO_ONLY) {
 
             try (TornadoExecutionPlan executionPlan = buildExecutionPlan()) {
-
+                resetOutputs();
                 TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
                 executionPlan.withDevice(device);
 

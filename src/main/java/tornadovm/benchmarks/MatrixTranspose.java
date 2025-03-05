@@ -129,12 +129,21 @@ public class MatrixTranspose extends BenchmarkDriver {
     }
 
     @Override
-    public TornadoExecutionPlan buildExecutionPlan() throws TornadoExecutionPlanException {
+    public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.FIRST_EXECUTION, a)
                 .task("matrixTranspose", this::computeWithTornadoVM, a, output)
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
         return new TornadoExecutionPlan(taskGraph.snapshot());
+    }
+
+    @Override
+    public void resetOutputs() {
+        for (int i = 0; i < a.getNumRows(); i++) {
+            for (int j = 0; j < a.getNumColumns(); j++) {
+                output.set(i, j, 0);
+            }
+        }
     }
 
     @Override
@@ -185,14 +194,7 @@ public class MatrixTranspose extends BenchmarkDriver {
         @Setup(Level.Trial)
         public void doSetup() {
             matrixTranspose = new MatrixTranspose();
-            matrix = new Matrix2DFloat(SIZE, SIZE);
-            output = new Matrix2DFloat(SIZE, SIZE);
-            TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .transferToDevice(DataTransferMode.FIRST_EXECUTION, matrix)
-                    .task("matrixTranspose", matrixTranspose::computeWithTornadoVM, matrix, output)
-                    .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
-
-            executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
+            executionPlan = matrixTranspose.buildExecutionPlan();
         }
 
         @org.openjdk.jmh.annotations.Benchmark

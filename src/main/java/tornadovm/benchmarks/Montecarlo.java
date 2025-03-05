@@ -204,6 +204,11 @@ public class Montecarlo extends BenchmarkDriver {
     }
 
     @Override
+    public void resetOutputs() {
+        output.init(0);
+    }
+
+    @Override
     public void validate(int i) {
         validate(i, outputRef, output);
     }
@@ -252,22 +257,13 @@ public class Montecarlo extends BenchmarkDriver {
 
     @State(Scope.Thread)
     public static class JMHBenchmark {
-
         private Montecarlo montecarlo;
-
-        private FloatArray output;
-
         private TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
         public void doSetup() {
-            final int size = SIZE;
             montecarlo = new Montecarlo();
-            output = new FloatArray(size);
-            TaskGraph taskGraph = new TaskGraph("benchmark")
-                    .task("montecarlo", montecarlo::computeWithTornadoVM, output, SIZE)
-                    .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
-            executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
+            executionPlan = montecarlo.buildExecutionPlan();
         }
 
         @org.openjdk.jmh.annotations.Benchmark

@@ -46,6 +46,7 @@ public class Main {
                 case "blurfilter" -> benchmark = new BlurFilter(Catalog.DEFAULT.get(Catalog.BenchmarkID.BlurFilter).image());
                 case "saxpy" -> benchmark = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
                 case "nbody" -> benchmark = new NBody(Catalog.DEFAULT.get(Catalog.BenchmarkID.NBody).size());
+                case "juliaset" -> benchmark = new JuliaSets(Catalog.DEFAULT.get(Catalog.BenchmarkID.JuliaSets).size());
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
             // remove element 0 from the list
@@ -66,6 +67,7 @@ public class Main {
             benchmarks[6] = new BlurFilter(Catalog.DEFAULT.get(Catalog.BenchmarkID.BlurFilter).image());
             benchmarks[7] = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
             benchmarks[8] = new NBody(Catalog.DEFAULT.get(Catalog.BenchmarkID.NBody).size());
+            benchmarks[9] = new JuliaSets(Catalog.DEFAULT.get(Catalog.BenchmarkID.JuliaSets).size());
 
             Arrays.stream(benchmarks).sequential().forEach(benchmark -> {
                 try {

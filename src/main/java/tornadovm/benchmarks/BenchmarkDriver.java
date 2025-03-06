@@ -36,7 +36,7 @@ public abstract class BenchmarkDriver extends Benchmark {
 
     public abstract void resetOutputs();
 
-    public abstract void validate(int i);
+    public abstract void validate(int runID);
 
     @Override
     void runTestAll(int size, Option option) throws InterruptedException {

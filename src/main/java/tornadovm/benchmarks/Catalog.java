@@ -33,6 +33,7 @@ public class Catalog {
         Blackscholes("Blackscholes"),
         BlurFilter("blurfilter"),
         DFT("dft"),
+        JuliaSets("JuliaSets"),
         Mandelbrot("mandelbrot"),
         MatrixMul("mxm"),
         MatrixTranspose("mt"),
@@ -63,6 +64,7 @@ public class Catalog {
         DEFAULT.put(BenchmarkID.Blackscholes, new DefaultCatalog(1, 8192 * 4096, null));
         DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpeg")));
         DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192, null));
+        DEFAULT.put(BenchmarkID.JuliaSets, new DefaultCatalog(2, 4096, null));
         DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 8192, null));
         DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024,null));
         DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192,null));

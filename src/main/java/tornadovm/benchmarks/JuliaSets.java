@@ -42,12 +42,12 @@ import java.util.stream.IntStream;
 public class JuliaSets extends BenchmarkDriver {
 
     private static final int MAX_ITERATIONS = 1000;
-    private int size;
-    private FloatArray hue;
-    private FloatArray brightness;
+    private final int size;
+    private final FloatArray hue;
+    private final FloatArray brightness;
 
-    private FloatArray hueRef;
-    private FloatArray brightnessRef;
+    private final FloatArray hueRef;
+    private final FloatArray brightnessRef;
 
     private static final float ZOOM = 1;
     private static final float CX = -0.7f;
@@ -66,10 +66,10 @@ public class JuliaSets extends BenchmarkDriver {
 
     @Override
     public void computeSequential() {
-        for (int ix = 0; ix < size; ix++) {
-            for (int jx = 0; jx < size; jx++) {
-                float zx = 1.5f * (ix - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
-                float zy = (jx - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                float zx = 1.5f * (i - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
+                float zy = (j - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
                 float k = MAX_ITERATIONS;
                 while (zx * zx + zy * zy < 4 && k > 0) {
                     float tmp = zx * zx - zy * zy + CX;
@@ -77,18 +77,18 @@ public class JuliaSets extends BenchmarkDriver {
                     zx = tmp;
                     k--;
                 }
-                hueRef.set(ix * size + jx, (MAX_ITERATIONS / k));
-                brightnessRef.set(ix * size + jx, k > 0 ? 1 : 0);
+                hueRef.set(i * size + j, (MAX_ITERATIONS / k));
+                brightnessRef.set(i * size + j, k > 0 ? 1 : 0);
             }
         }
     }
 
     @Override
     public void computeWithJavaStreams() {
-        IntStream.range(0, size).parallel().forEach(ix -> {
-            IntStream.range(0, size).parallel().forEach(jx -> {
-                float zx = 1.5f * (ix - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
-                float zy = (jx - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
+        IntStream.range(0, size).parallel().forEach(i -> {
+            IntStream.range(0, size).parallel().forEach(j -> {
+                float zx = 1.5f * (i - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
+                float zy = (j - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
                 float k = MAX_ITERATIONS;
                 while (zx * zx + zy * zy < 4 && k > 0) {
                     float tmp = zx * zx - zy * zy + CX;
@@ -96,8 +96,8 @@ public class JuliaSets extends BenchmarkDriver {
                     zx = tmp;
                     k--;
                 }
-                hue.set(ix * size + jx, (MAX_ITERATIONS / k));
-                brightness.set(ix * size + jx, k > 0 ? 1 : 0);
+                hue.set(i * size + j, (MAX_ITERATIONS / k));
+                brightness.set(i * size + j, k > 0 ? 1 : 0);
             });
         });
     }
@@ -109,10 +109,10 @@ public class JuliaSets extends BenchmarkDriver {
         Thread[] threads = new Thread[maxProcessors];
         IntStream.range(0, threads.length).forEach(threadIndex -> {
             threads[threadIndex] = new Thread(() -> {
-                for (int ix = ranges[threadIndex].min(); ix < ranges[threadIndex].max(); ix++) {
-                    for (int jx = 0; jx < size; jx++) {
-                        float zx = 1.5f * (ix - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
-                        float zy = (jx - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
+                for (int i = ranges[threadIndex].min(); i < ranges[threadIndex].max(); i++) {
+                    for (int j = 0; j < size; j++) {
+                        float zx = 1.5f * (i - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
+                        float zy = (j - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
                         float k = MAX_ITERATIONS;
                         while (zx * zx + zy * zy < 4 && k > 0) {
                             float tmp = zx * zx - zy * zy + CX;
@@ -120,8 +120,8 @@ public class JuliaSets extends BenchmarkDriver {
                             zx = tmp;
                             k--;
                         }
-                        hue.set(ix * size + jx, (MAX_ITERATIONS / k));
-                        brightness.set(ix * size + jx, k > 0 ? 1 : 0);
+                        hue.set(i * size + j, (MAX_ITERATIONS / k));
+                        brightness.set(i * size + j, k > 0 ? 1 : 0);
                     }
                 }
             });
@@ -140,10 +140,10 @@ public class JuliaSets extends BenchmarkDriver {
     }
 
     private void computeWithTornadoVM(int size, FloatArray hue, FloatArray brightness) {
-        for (@Parallel int ix = 0; ix < size; ix++) {
-            for (@Parallel int jx = 0; jx < size; jx++) {
-                float zx = 1.5f * (ix - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
-                float zy = (jx - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
+        for (@Parallel int i = 0; i < size; i++) {
+            for (@Parallel int j = 0; j < size; j++) {
+                float zx = 1.5f * (i - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
+                float zy = (j - size / 2) / (0.5f * ZOOM * size) + MOVE_Y;
                 float k = MAX_ITERATIONS;
                 while (zx * zx + zy * zy < 4 && k > 0) {
                     float tmp = zx * zx - zy * zy + CX;
@@ -151,8 +151,8 @@ public class JuliaSets extends BenchmarkDriver {
                     zx = tmp;
                     k--;
                 }
-                hue.set(ix * size + jx, (MAX_ITERATIONS / k));
-                brightness.set(ix * size + jx, k > 0 ? 1 : 0);
+                hue.set(i * size + j, (MAX_ITERATIONS / k));
+                brightness.set(i * size + j, k > 0 ? 1 : 0);
             }
         }
     }

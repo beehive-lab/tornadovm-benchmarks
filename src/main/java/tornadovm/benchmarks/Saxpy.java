@@ -109,8 +109,7 @@ public class Saxpy extends BenchmarkDriver {
             FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
             FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
             FloatVector add = a.mul(alpha).add(b);
-            var mask = FloatVector.SPECIES_PREFERRED.indexInRange(i, output.getSize());
-            add.intoMemorySegment(output.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder(), mask);
+            add.intoMemorySegment(output.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
         }
     }
 

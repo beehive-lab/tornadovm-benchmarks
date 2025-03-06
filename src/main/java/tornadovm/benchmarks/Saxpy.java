@@ -39,6 +39,7 @@ import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -53,6 +54,15 @@ public class Saxpy extends BenchmarkDriver {
 
     public Saxpy(int size) {
         this.size = size;
+        output = new FloatArray(size);
+        outputRef = new FloatArray(size);
+        arrayA = new FloatArray(size);
+        arrayB = new FloatArray(size);
+        Random r = new Random();
+        for (int i = 0; i < size; i++) {
+            arrayA.set(i, r.nextFloat());
+            arrayB.set(i, r.nextFloat());
+        }
     }
 
     @Override
@@ -65,7 +75,7 @@ public class Saxpy extends BenchmarkDriver {
     @Override
     public void computeWithJavaStreams() {
         IntStream.range(0, size).forEach(i -> {
-            outputRef.set(i, alpha * arrayA.get(i) + arrayB.get(i));
+            output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         });
     }
 
@@ -78,7 +88,7 @@ public class Saxpy extends BenchmarkDriver {
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    outputRef.set(j, alpha * arrayA.get(j) + arrayB.get(j));
+                    output.set(j, alpha * arrayA.get(j) + arrayB.get(j));
                 }
             });
         });
@@ -94,17 +104,19 @@ public class Saxpy extends BenchmarkDriver {
     @Override
     public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
+        final long FLOAT_BYES = 4;
         for (int i = 0; i < size; i += species.length()) {
-            FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * 4, ByteOrder.nativeOrder());
-            FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * 4, ByteOrder.nativeOrder());
+            FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+            FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
             FloatVector add = a.mul(alpha).add(b);
-            // TODO: investigate how to set a vector directory into a segment position
+            var mask = FloatVector.SPECIES_PREFERRED.indexInRange(i, output.getSize());
+            add.intoMemorySegment(output.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder(), mask);
         }
     }
 
-    public void computeWithTornadoVM(FloatArray arrayA, FloatArray arrayB, FloatArray output) {
-        for (@Parallel int i = 0; i < size; i++) {
-            outputRef.set(i, alpha * arrayA.get(i) + arrayB.get(i));
+    public void computeWithTornadoVM(float alpha, FloatArray arrayA, FloatArray arrayB, FloatArray output) {
+        for (@Parallel int i = 0; i < arrayA.getSize(); i++) {
+            output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         }
     }
 
@@ -112,7 +124,7 @@ public class Saxpy extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.FIRST_EXECUTION, arrayA, arrayB)
-                .task("saxpy", this::computeWithTornadoVM, arrayA, arrayB, output)
+                .task("saxpy", this::computeWithTornadoVM, alpha, arrayA, arrayB, output)
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

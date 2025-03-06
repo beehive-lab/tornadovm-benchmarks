@@ -60,14 +60,14 @@ public class Catalog {
 
     static {
         DEFAULT.put(BenchmarkID.Blackscholes, new DefaultCatalog(1, 8192 * 4096, null));
-        DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpeg")));  // TODO: pass the image
+        DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpeg")));
         DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192, null));
         DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 8192, null));
         DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024,null));
         DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192,null));
         DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2, null));
         DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8, null));
-        DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 8, null));
+        DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 4, null));
     }
 
     private Catalog() {}

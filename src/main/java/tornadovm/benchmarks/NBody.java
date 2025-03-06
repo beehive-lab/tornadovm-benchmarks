@@ -54,7 +54,6 @@ public class NBody extends BenchmarkDriver {
     FloatArray auxVelocityZero;
 
     public NBody(int numBodies) {
-
         this.delT = 0.005f;
         this.espSqr = 500.0f;
         this.numBodies = numBodies;
@@ -63,7 +62,6 @@ public class NBody extends BenchmarkDriver {
         for (int i = 0; i < auxPositionRandom.getSize(); i++) {
             auxPositionRandom.set(i, (float) Math.random());
         }
-
         auxVelocityZero.init(0.0f);
         posRef = new FloatArray(numBodies * 4);
         velRef = new FloatArray(numBodies * 4);
@@ -196,7 +194,6 @@ public class NBody extends BenchmarkDriver {
     public void computeWithParallelVectorAPI() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-
 
     public void computeWithTornadoVM(int numBodies, FloatArray refPos, FloatArray refVel, float delT, float espSqr) {
         for (@Parallel int i = 0; i < numBodies; i++) {

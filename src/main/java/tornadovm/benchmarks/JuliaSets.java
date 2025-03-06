@@ -282,4 +282,9 @@ public class JuliaSets extends BenchmarkDriver {
     String printSize() {
         return getSize() + "x" + getSize();
     }
+
+    public static void main(String[] args) throws InterruptedException {
+        JuliaSets benchmark = new JuliaSets(Catalog.DEFAULT.get(Catalog.BenchmarkID.JuliaSets).size());
+        benchmark.run(args);
+    }
 }

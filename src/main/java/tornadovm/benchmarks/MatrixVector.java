@@ -548,7 +548,7 @@ public class MatrixVector extends Benchmark {
 
     @Override
     String getName() {
-        return "MatrixVector";
+        return "matrix-vector";
     }
 
     @Override

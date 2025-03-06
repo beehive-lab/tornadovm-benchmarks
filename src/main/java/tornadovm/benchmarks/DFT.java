@@ -332,7 +332,7 @@ public class DFT extends BenchmarkDriver {
 
     @Override
     String getName() {
-        return "DFT";
+        return "dft";
     }
 
     @Override

@@ -318,7 +318,7 @@ public class Mandelbrot extends BenchmarkDriver {
 
     @Override
     String getName() {
-        return "Mandelbrot";
+        return "mandelbrot";
     }
 
     @Override

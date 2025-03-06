@@ -340,7 +340,7 @@ public class Montecarlo extends BenchmarkDriver {
 
     @Override
     String getName() {
-        return "Montecarlo";
+        return "montecarlo";
     }
 
     @Override

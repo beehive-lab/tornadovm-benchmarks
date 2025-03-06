@@ -583,7 +583,7 @@ public class MatrixMultiplication extends Benchmark {
 
     @Override
     String getName() {
-        return "MatrixMultiplication";
+        return "matrix-multiplication";
     }
 
     @Override

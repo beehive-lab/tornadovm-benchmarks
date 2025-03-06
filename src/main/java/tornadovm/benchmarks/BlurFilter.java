@@ -347,7 +347,7 @@ public class BlurFilter extends BenchmarkDriver {
 
     @Override
     String getName() {
-        return "blurFilter";
+        return "blurfilter";
     }
 
     @Override

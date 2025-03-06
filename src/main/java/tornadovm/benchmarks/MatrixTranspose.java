@@ -264,7 +264,7 @@ public class MatrixTranspose extends BenchmarkDriver {
 
     @Override
     String getName() {
-        return "MatrixTranspose";
+        return "matrix-transpose";
     }
 
     @Override

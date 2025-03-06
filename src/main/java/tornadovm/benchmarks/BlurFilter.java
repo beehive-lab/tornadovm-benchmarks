@@ -46,7 +46,7 @@ public class BlurFilter extends BenchmarkDriver {
 
     public static final int FILTER_WIDTH = 31;
 
-    private BufferedImage image;
+    private final BufferedImage image;
 
     int w;
     int h;

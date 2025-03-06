@@ -38,6 +38,7 @@ public class Catalog {
         MatrixTranspose("mt"),
         MatrixVector("mxv"),
         Montecarlo("montecarlo"),
+        NBody("nbody"),
         Saxpy("saxpy");
 
         String id;
@@ -67,6 +68,7 @@ public class Catalog {
         DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192,null));
         DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2, null));
         DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8, null));
+        DEFAULT.put(BenchmarkID.NBody, new DefaultCatalog(1, 16384, null));
         DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 4, null));
     }
 

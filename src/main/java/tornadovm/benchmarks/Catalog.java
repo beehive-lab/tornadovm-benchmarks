@@ -65,7 +65,7 @@ public class Catalog {
         DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpg")));
         DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192, null));
         DEFAULT.put(BenchmarkID.JuliaSets, new DefaultCatalog(2, 4096, null));
-        DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 8192, null));
+        DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 512, null));
         DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024,null));
         DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192,null));
         DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2, null));

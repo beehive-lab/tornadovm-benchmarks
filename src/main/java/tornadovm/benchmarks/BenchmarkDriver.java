@@ -22,9 +22,7 @@ import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 
 import java.util.ArrayList;
 
-public abstract class BenchmarkDriver extends Benchmark implements AutoCloseable {
-
-    TornadoExecutionPlan executionPlan;
+public abstract class BenchmarkDriver extends Benchmark {
 
     public abstract void computeSequential();
 
@@ -39,13 +37,6 @@ public abstract class BenchmarkDriver extends Benchmark implements AutoCloseable
     public abstract void resetOutputs();
 
     public abstract void validate(int runID);
-
-    @Override
-    public void close() throws Exception {
-        if (executionPlan != null) {
-            this.executionPlan.close();
-        }
-    }
 
     @Override
     void runTestAll(int size, Option option) throws InterruptedException {
@@ -129,7 +120,6 @@ public abstract class BenchmarkDriver extends Benchmark implements AutoCloseable
 
         if (option == Option.ALL || option == Option.TORNADO_ONLY) {
             try (TornadoExecutionPlan executionPlan = buildExecutionPlan()) {
-                this.executionPlan = executionPlan;
                 resetOutputs();
                 timers.add(new ArrayList<>());
                 headerTable.append(",TornadoVM");

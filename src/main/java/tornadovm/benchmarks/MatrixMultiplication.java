@@ -41,6 +41,7 @@ import uk.ac.manchester.tornado.api.WorkerGrid2D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
+import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
 
 import java.lang.foreign.Arena;
@@ -249,23 +250,12 @@ public class MatrixMultiplication extends Benchmark {
             return matrix2DFloat;
         }
 
-        private static TornadoExecutionPlan createTornadoVMPlan(Matrix2DFloat a, Matrix2DFloat b, Matrix2DFloat c) {
+        private static TaskGraph createTaskGraph(Matrix2DFloat a, Matrix2DFloat b, Matrix2DFloat c) {
             TaskGraph taskGraph = new TaskGraph("benchmark");
             taskGraph.transferToDevice(DataTransferMode.FIRST_EXECUTION, a, b) //
                     .task("mxm", Multiplication::mxmTornadoVM, a, b, c, a.getNumRows()) //
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
-            TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
-
-            TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
-
-            WorkerGrid workerGrid = new WorkerGrid2D(a.getNumRows(), a.getNumColumns());
-            workerGrid.setLocalWork(8, 8, 1);
-            GridScheduler gridScheduler = new GridScheduler("benchmark.mxm", workerGrid);
-            executionPlan
-                    //.withGridScheduler(gridScheduler)
-                    .withDevice(device);
-
-            return executionPlan;
+            return taskGraph;
         }
 
         private static boolean verify(FloatMatrix matrix, FloatMatrix referenceMatrix) {
@@ -335,6 +325,7 @@ public class MatrixMultiplication extends Benchmark {
         Matrix2DFloat tma;
         Matrix2DFloat tmb;
         Matrix2DFloat resultTornadoVM;
+        TaskGraph taskGraph;
         TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
@@ -358,7 +349,8 @@ public class MatrixMultiplication extends Benchmark {
             tma = Multiplication.transformMatrixForTornadoVM(matrixA);
             tmb = Multiplication.transformMatrixForTornadoVM(matrixB);
             resultTornadoVM = new Matrix2DFloat(size, size);
-            executionPlan = Multiplication.createTornadoVMPlan(tma, tmb, resultTornadoVM);
+            taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM);
+            executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -558,24 +550,35 @@ public class MatrixMultiplication extends Benchmark {
             Matrix2DFloat tma = Multiplication.transformMatrixForTornadoVM(matrixA);
             Matrix2DFloat tmb = Multiplication.transformMatrixForTornadoVM(matrixB);
             Matrix2DFloat resultTornadoVM = new Matrix2DFloat(size, size);
-            TornadoExecutionPlan executionPlan = Multiplication.createTornadoVMPlan(tma, tmb, resultTornadoVM);
+            TaskGraph taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM);
 
-            // 6. On the GPU using TornadoVM
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                executionPlan.execute();
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(5).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
+            try(TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
+                TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
+                WorkerGrid workerGrid = new WorkerGrid2D(tma.getNumRows(), tma.getNumColumns());
+                workerGrid.setLocalWork(8, 8, 1);
+                GridScheduler gridScheduler = new GridScheduler("benchmark.mxm", workerGrid);
+                executionPlan
+                        //.withGridScheduler(gridScheduler)
+                        .withDevice(device);
 
-                double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                String formatGPUFGlops = String.format("%.2f", gigaFlops);
+                // 6. On the GPU using TornadoVM
+                for (int i = 0; i < Config.RUNS; i++) {
+                    long start = System.nanoTime();
+                    executionPlan.execute();
+                    long end = System.nanoTime();
+                    long elapsedTime = (end - start);
+                    timers.get(5).add(elapsedTime);
+                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
-                System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                Multiplication.validate(i, resultTornadoVM, outputReference);
+                    double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
+                    String formatGPUFGlops = String.format("%.2f", gigaFlops);
+
+                    System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
+                    Multiplication.validate(i, resultTornadoVM, outputReference);
+                }
+            } catch (TornadoExecutionPlanException e) {
+                throw new RuntimeException(e);
             }
-            executionPlan.freeDeviceMemory();
         }
         if (option == Option.ALL) {
             Utils.dumpPerformanceTable(timers, 6, "mxm", Config.HEADER);

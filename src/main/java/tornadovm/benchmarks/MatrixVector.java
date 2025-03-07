@@ -33,14 +33,11 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
-import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
-import uk.ac.manchester.tornado.api.WorkerGrid;
-import uk.ac.manchester.tornado.api.WorkerGrid1D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
-import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
+import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
 
@@ -249,24 +246,12 @@ public class MatrixVector extends Benchmark {
             return array;
         }
 
-        private static TornadoExecutionPlan createTornadoVMPlan(Matrix2DFloat a, FloatArray b, FloatArray c) {
+        private static TaskGraph createTaskGraph(Matrix2DFloat a, FloatArray b, FloatArray c) {
             TaskGraph taskGraph = new TaskGraph("benchmark");
             taskGraph.transferToDevice(DataTransferMode.FIRST_EXECUTION, a, b) //
                     .task("mxv", Multiplication::mxvTornadoVM, a, b, c, a.getNumRows()) //
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
-            TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
-
-            TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
-
-            WorkerGrid workerGrid = new WorkerGrid1D(a.getNumRows());
-            workerGrid.setLocalWork(16, 1, 1);
-            GridScheduler gridScheduler = new GridScheduler("benchmark.mxv", workerGrid);
-            executionPlan //
-                    //.withGridScheduler(gridScheduler)
-                    .withDevice(device);
-
-
-            return executionPlan;
+            return taskGraph;
         }
 
         private static boolean verify(FVector array, FVector refArray) {
@@ -343,7 +328,7 @@ public class MatrixVector extends Benchmark {
             tma = Multiplication.transformMatrixForTornadoVM(matrixA);
             tvector = Multiplication.transformFVectorForTornadoVM(vector);
             resultTornadoVM = new FloatArray(size);
-            executionPlan = Multiplication.createTornadoVMPlan(tma, tvector, resultTornadoVM);
+            executionPlan = new TornadoExecutionPlan(Multiplication.createTaskGraph(tma, tvector, resultTornadoVM).snapshot());
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -526,21 +511,24 @@ public class MatrixVector extends Benchmark {
             Matrix2DFloat tma = Multiplication.transformMatrixForTornadoVM(matrix);
             FloatArray tmb = Multiplication.transformFVectorForTornadoVM(vector);
             FloatArray resultTornadoVM = new FloatArray(size);
-            TornadoExecutionPlan executionPlan = Multiplication.createTornadoVMPlan(tma, tmb, resultTornadoVM);
+            TaskGraph taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM);
+            try (TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
 
-            // 6. On the GPU using TornadoVM
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                executionPlan.execute();
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(5).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
+                // 6. On the GPU using TornadoVM
+                for (int i = 0; i < Config.RUNS; i++) {
+                    long start = System.nanoTime();
+                    executionPlan.execute();
+                    long end = System.nanoTime();
+                    long elapsedTime = (end - start);
+                    timers.get(5).add(elapsedTime);
+                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
-                System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
-                Multiplication.validate(i, resultTornadoVM, outputReference);
+                    System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
+                    Multiplication.validate(i, resultTornadoVM, outputReference);
+                }
+            } catch (TornadoExecutionPlanException e) {
+                throw new RuntimeException(e);
             }
-            executionPlan.freeDeviceMemory();
         }
         if (option == Option.ALL) {
             Utils.dumpPerformanceTable(timers, 6, "matrixVector", Config.HEADER);

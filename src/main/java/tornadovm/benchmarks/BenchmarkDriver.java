@@ -22,7 +22,9 @@ import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 
 import java.util.ArrayList;
 
-public abstract class BenchmarkDriver extends Benchmark {
+public abstract class BenchmarkDriver extends Benchmark implements AutoCloseable {
+
+    TornadoExecutionPlan executionPlan;
 
     public abstract void computeSequential();
 
@@ -39,9 +41,14 @@ public abstract class BenchmarkDriver extends Benchmark {
     public abstract void validate(int runID);
 
     @Override
-    void runTestAll(int size, Option option) throws InterruptedException {
+    public void close() throws Exception {
+        if (executionPlan != null) {
+            this.executionPlan.close();
+        }
+    }
 
-        final int implementationsToCompare = 5;
+    @Override
+    void runTestAll(int size, Option option) throws InterruptedException {
         ArrayList<ArrayList<Long>> timers = new ArrayList<>();
         StringBuilder headerTable = new StringBuilder();
 
@@ -122,6 +129,7 @@ public abstract class BenchmarkDriver extends Benchmark {
 
         if (option == Option.ALL || option == Option.TORNADO_ONLY) {
             try (TornadoExecutionPlan executionPlan = buildExecutionPlan()) {
+                this.executionPlan = executionPlan;
                 resetOutputs();
                 timers.add(new ArrayList<>());
                 headerTable.append(",TornadoVM");
@@ -140,7 +148,6 @@ public abstract class BenchmarkDriver extends Benchmark {
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
                     validate(i);
                 }
-                executionPlan.freeDeviceMemory();
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);
             }

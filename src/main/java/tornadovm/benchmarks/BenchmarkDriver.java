@@ -140,6 +140,7 @@ public abstract class BenchmarkDriver extends Benchmark {
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
                     validate(i);
                 }
+                executionPlan.freeDeviceMemory();
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);
             }

@@ -540,6 +540,7 @@ public class MatrixVector extends Benchmark {
                 System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- ");
                 Multiplication.validate(i, resultTornadoVM, outputReference);
             }
+            executionPlan.freeDeviceMemory();
         }
         if (option == Option.ALL) {
             Utils.dumpPerformanceTable(timers, 6, "matrixVector", Config.HEADER);

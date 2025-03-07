@@ -575,6 +575,7 @@ public class MatrixMultiplication extends Benchmark {
                 System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
                 Multiplication.validate(i, resultTornadoVM, outputReference);
             }
+            executionPlan.freeDeviceMemory();
         }
         if (option == Option.ALL) {
             Utils.dumpPerformanceTable(timers, 6, "mxm", Config.HEADER);

@@ -30,10 +30,14 @@ public abstract class Benchmark {
 
     abstract String printSize();
 
+    private void printMessageInfo(String message) {
+        System.out.println(Config.Colours.BLUE + message + Config.Colours.RESET);
+    }
+
     public void run(String[] args) throws InterruptedException {
-        System.out.println("[INFO] " + getName());
+        printMessageInfo("[INFO] Benchmark: " + getName());
         final int size = getSize();
-        System.out.println("[INFO] " +  getName() + " size: " + printSize());
+        printMessageInfo("[INFO] " +  getName() + " size: " + printSize());
 
         Option option = Option.ALL;
         if (args.length > 0) {

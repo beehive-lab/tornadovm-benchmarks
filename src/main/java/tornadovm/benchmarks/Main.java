@@ -54,7 +54,7 @@ public class Main {
             System.arraycopy(args, 1, arguments, 0, arguments.length);
             benchmark.run(arguments);
         } else {
-            System.out.println("[TornadoVM Benchmarks] Running all benchmarks...");
+            System.out.println(Config.Colours.GREEN + "[INFO] Running all benchmarks..." + Config.Colours.RESET);
 
             Benchmark[] benchmarks = new Benchmark[Catalog.BenchmarkID.values().length];
             benchmarks[0] = new MatrixMultiplication(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMul).size());
@@ -71,6 +71,7 @@ public class Main {
 
             Arrays.stream(benchmarks).sequential().forEach(benchmark -> {
                 try {
+                    System.out.println(Config.Colours.GREEN + "[INFO] TornadoVM Benchmark:  " + benchmark.getName() + Config.Colours.RESET);
                     benchmark.run(args);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);

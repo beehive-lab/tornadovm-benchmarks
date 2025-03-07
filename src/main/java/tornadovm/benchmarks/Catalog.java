@@ -62,7 +62,7 @@ public class Catalog {
 
     static {
         DEFAULT.put(BenchmarkID.Blackscholes, new DefaultCatalog(1, 8192 * 4096, null));
-        DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpeg")));
+        DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpg")));
         DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192, null));
         DEFAULT.put(BenchmarkID.JuliaSets, new DefaultCatalog(2, 4096, null));
         DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 8192, null));

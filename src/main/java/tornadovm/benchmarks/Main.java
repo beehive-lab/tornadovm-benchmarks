@@ -64,10 +64,10 @@ public class Main {
             benchmarks[4] = new MatrixVector(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixVector).size());
             benchmarks[5] = new MatrixTranspose(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixTranspose).size());
             benchmarks[6] = new Blackscholes(Catalog.DEFAULT.get(Catalog.BenchmarkID.Blackscholes).size());
-            benchmarks[6] = new BlurFilter(Catalog.DEFAULT.get(Catalog.BenchmarkID.BlurFilter).image());
-            benchmarks[7] = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
-            benchmarks[8] = new NBody(Catalog.DEFAULT.get(Catalog.BenchmarkID.NBody).size());
-            benchmarks[9] = new JuliaSets(Catalog.DEFAULT.get(Catalog.BenchmarkID.JuliaSets).size());
+            benchmarks[7] = new BlurFilter(Catalog.DEFAULT.get(Catalog.BenchmarkID.BlurFilter).image());
+            benchmarks[8] = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
+            benchmarks[9] = new NBody(Catalog.DEFAULT.get(Catalog.BenchmarkID.NBody).size());
+            benchmarks[10] = new JuliaSets(Catalog.DEFAULT.get(Catalog.BenchmarkID.JuliaSets).size());
 
             Arrays.stream(benchmarks).sequential().forEach(benchmark -> {
                 try {

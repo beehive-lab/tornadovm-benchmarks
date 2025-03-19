@@ -132,7 +132,7 @@ public class MatrixTranspose extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.FIRST_EXECUTION, a)
-                .task("matrixTranspose", this::computeWithTornadoVM, a, output)
+                .task("matrixTranspose", MatrixTranspose::computeWithTornadoVM, a, output)
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }
@@ -151,7 +151,7 @@ public class MatrixTranspose extends BenchmarkDriver {
         validate(i, output, refOutput);
     }
 
-    public void computeWithTornadoVM(Matrix2DFloat a, Matrix2DFloat b) {
+    private static void computeWithTornadoVM(Matrix2DFloat a, Matrix2DFloat b) {
         for (@Parallel int i = 0; i < a.getNumRows(); i++) {
             for (@Parallel int j = 0; j < b.getNumColumns(); j++) {
                 b.set(j, i, a.get(i, j));

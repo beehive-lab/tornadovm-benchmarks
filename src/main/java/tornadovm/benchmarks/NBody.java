@@ -195,7 +195,7 @@ public class NBody extends BenchmarkDriver {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void computeWithTornadoVM(int numBodies, FloatArray refPos, FloatArray refVel, float delT, float espSqr) {
+    private static void computeWithTornadoVM(int numBodies, FloatArray refPos, FloatArray refVel, float delT, float espSqr) {
         for (@Parallel int i = 0; i < numBodies; i++) {
             int body = 4 * i;
             float[] acc = new float[] { 0.0f, 0.0f, 0.0f };
@@ -229,7 +229,7 @@ public class NBody extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.EVERY_EXECUTION, vel, pos) //
-                .task("nbody", this::computeWithTornadoVM, numBodies, pos, vel, delT, espSqr)
+                .task("nbody", NBody::computeWithTornadoVM, numBodies, pos, vel, delT, espSqr)
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, vel, pos);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

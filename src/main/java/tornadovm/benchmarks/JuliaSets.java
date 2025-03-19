@@ -139,7 +139,7 @@ public class JuliaSets extends BenchmarkDriver {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    private void computeWithTornadoVM(int size, FloatArray hue, FloatArray brightness) {
+    private static void computeWithTornadoVM(int size, FloatArray hue, FloatArray brightness) {
         for (@Parallel int i = 0; i < size; i++) {
             for (@Parallel int j = 0; j < size; j++) {
                 float zx = 1.5f * (i - size / 2) / (0.5f * ZOOM * size) + MOVE_X;
@@ -160,7 +160,7 @@ public class JuliaSets extends BenchmarkDriver {
         @Override
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark") //
-                .task("juliaSet", this::computeWithTornadoVM, size, hue, brightness) //
+                .task("juliaSet", JuliaSets::computeWithTornadoVM, size, hue, brightness) //
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, hue, brightness);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

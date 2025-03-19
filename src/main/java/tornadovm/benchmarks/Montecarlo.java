@@ -199,7 +199,7 @@ public class Montecarlo extends BenchmarkDriver {
     @Override
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
-            .task("montecarlo", this::computeWithTornadoVM, output, size)
+            .task("montecarlo", Montecarlo::computeWithTornadoVM, output, size)
             .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }
@@ -214,7 +214,7 @@ public class Montecarlo extends BenchmarkDriver {
         validate(i, outputRef, output);
     }
 
-    public void computeWithTornadoVM(FloatArray output, final int iterations) {
+    private static void computeWithTornadoVM(FloatArray output, final int iterations) {
         for (@Parallel int j = 0; j < iterations; j++) {
             long seed = j;
             // generate a pseudo random number (you do need it twice)

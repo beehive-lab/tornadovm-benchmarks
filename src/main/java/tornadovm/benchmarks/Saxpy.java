@@ -113,7 +113,7 @@ public class Saxpy extends BenchmarkDriver {
         }
     }
 
-    public void computeWithTornadoVM(float alpha, FloatArray arrayA, FloatArray arrayB, FloatArray output) {
+    private static void computeWithTornadoVM(float alpha, FloatArray arrayA, FloatArray arrayB, FloatArray output) {
         for (@Parallel int i = 0; i < arrayA.getSize(); i++) {
             output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         }
@@ -123,7 +123,7 @@ public class Saxpy extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.FIRST_EXECUTION, arrayA, arrayB)
-                .task("saxpy", this::computeWithTornadoVM, alpha, arrayA, arrayB, output)
+                .task("saxpy", Saxpy::computeWithTornadoVM, alpha, arrayA, arrayB, output)
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

@@ -91,7 +91,7 @@ public class DFT extends BenchmarkDriver {
         }
     }
 
-    public void computeWithTornado(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
+    private static void computeWithTornado(FloatArray inreal, FloatArray inimag, FloatArray outreal, FloatArray outimag) {
         int n = inreal.getSize();
         for (@Parallel int k = 0; k < n; k++) { // For each output element
             float sumreal = 0;
@@ -164,7 +164,7 @@ public class DFT extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan() {
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.FIRST_EXECUTION, inreal, inimag)
-                .task("dft", this::computeWithTornado, inreal, inimag, outreal, outimag)
+                .task("dft", DFT::computeWithTornado, inreal, inimag, outreal, outimag)
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, outreal, outimag);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

@@ -182,7 +182,7 @@ public class Blackscholes extends BenchmarkDriver {
         throw new RuntimeException("Not implemented yet");
     }
 
-    private void blackScholesKernel(FloatArray input, FloatArray callResult, FloatArray putResult) {
+    private static void blackScholesKernel(FloatArray input, FloatArray callResult, FloatArray putResult) {
         for (@Parallel int idx = 0; idx < callResult.getSize(); idx++) {
             float rand = input.get(idx);
             final float S_LOWER_LIMIT = 10.0f;
@@ -212,7 +212,7 @@ public class Blackscholes extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan()  {
         TaskGraph taskGraph = new TaskGraph("bechmark") //
                 .transferToDevice(DataTransferMode.EVERY_EXECUTION, input) //
-                .task("blackscholes", this::blackScholesKernel, input, callResult, putResult) //
+                .task("blackscholes", Blackscholes::blackScholesKernel, input, callResult, putResult) //
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, callResult, putResult);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }

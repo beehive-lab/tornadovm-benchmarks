@@ -1,6 +1,8 @@
-# TornadoVM Benchmarks 
+# TornadoVM Benchmark Suite
 
-TornadoVM Benchmark Suite.
+TornadoVM Benchmark Suite. **This is a work in progress** and it is a framework to  compare 
+the TornadoVM applications with Java Streams and Java Vector API. 
+Not all implementations contain the Java Vector API at the moment. 
 
 ## How to build?
 

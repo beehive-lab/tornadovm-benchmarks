@@ -27,7 +27,33 @@ public class Catalog {
 
     public static final Map<BenchmarkID, DefaultCatalog> DEFAULT = new HashMap<>();
 
-    public record DefaultCatalog(int dimensions, int size, BufferedImage image) {}
+    public static class DefaultCatalog {
+        private final int dimensions;
+        private final int size;
+        private BufferedImage image;
+
+        public DefaultCatalog(int dimensions, int size) {
+            this.dimensions = dimensions;
+            this.size = size;
+        }
+
+        private DefaultCatalog withImage(BufferedImage image) {
+            this.image = image;
+            return this;
+        }
+
+        public int size() {
+            return size;
+        }
+
+        public int dimensions() {
+            return dimensions;
+        }
+
+        public BufferedImage image() {
+            return image;
+        }
+    }
 
     public enum BenchmarkID {
         Blackscholes("Blackscholes"),
@@ -60,18 +86,22 @@ public class Catalog {
         }
     }
 
+    /*
+     * Default input sizes for each benchmark.
+     * The catalog represents the number of dimensions (1D, 2D or 3D), the input size, and an image associated (if any).
+     */
     static {
-        DEFAULT.put(BenchmarkID.Blackscholes, new DefaultCatalog(1, 8192 * 4096, null));
-        DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1, loadImage("./images/small.jpg")));
-        DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192, null));
-        DEFAULT.put(BenchmarkID.JuliaSets, new DefaultCatalog(2, 4096, null));
-        DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 512, null));
-        DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024,null));
-        DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192,null));
-        DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2, null));
-        DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8, null));
-        DEFAULT.put(BenchmarkID.NBody, new DefaultCatalog(1, 16384, null));
-        DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 4, null));
+        DEFAULT.put(BenchmarkID.Blackscholes, new DefaultCatalog(1, 8192 * 4096));
+        DEFAULT.put(BenchmarkID.BlurFilter, new DefaultCatalog(2, -1).withImage(loadImage("./images/small.jpg")));
+        DEFAULT.put(BenchmarkID.DFT, new DefaultCatalog(1, 8192));
+        DEFAULT.put(BenchmarkID.JuliaSets, new DefaultCatalog(2, 4096));
+        DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 512));
+        DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024));
+        DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192));
+        DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2));
+        DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8));
+        DEFAULT.put(BenchmarkID.NBody, new DefaultCatalog(1, 16384));
+        DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 4));
     }
 
     private Catalog() {}

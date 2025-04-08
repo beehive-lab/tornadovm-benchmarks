@@ -66,6 +66,7 @@ public class Catalog {
         MatrixVector("mxv"),
         Montecarlo("montecarlo"),
         NBody("nbody"),
+        RMSNORM("rmsnorm"),
         Saxpy("saxpy");
 
         String id;
@@ -101,6 +102,7 @@ public class Catalog {
         DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2));
         DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8));
         DEFAULT.put(BenchmarkID.NBody, new DefaultCatalog(1, 16384));
+        DEFAULT.put(BenchmarkID.RMSNORM, new DefaultCatalog(1, 512));
         DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 4));
     }
 

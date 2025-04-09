@@ -19,7 +19,20 @@ package tornadovm.benchmarks;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.openjdk.jmh.runner.options.TimeValue;
 import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.KernelContext;
 import uk.ac.manchester.tornado.api.TaskGraph;
@@ -35,6 +48,7 @@ import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /**
@@ -119,7 +133,54 @@ public class RMSNorm extends BenchmarkDriver {
 
     @Override
     public void computeWithJavaThreads() throws InterruptedException {
-        //throw new UnsupportedOperationException("");
+        Range[] ranges = Utils.createRangesForCPU(output.getSize());
+        final int maxProcessors = Runtime.getRuntime().availableProcessors();
+
+        Thread[] threads = new Thread[maxProcessors];
+        // full reduction per thread
+        float[] reduction = new float[maxProcessors];
+        IntStream.range(0, threads.length).forEach(t -> {
+            threads[t] = new Thread(() -> {
+                float ss = 0.0f;
+                for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
+                    ss += x.get(j) * x.get(j);
+                }
+                reduction[t] = ss;
+            });
+        });
+
+        for (Thread t : threads) {
+            t.start();
+        }
+
+        for (Thread t : threads) {
+            t.join();
+        }
+
+        float ss = 0.0f;
+        for (int i = 0; i < reduction.length; i++) {
+            ss += reduction[i];
+        }
+        ss /= size;
+        ss += 1e-5f;
+        ss = 1.0f / TornadoMath.sqrt(ss);
+
+        final float ssFinal = ss;
+        IntStream.range(0, threads.length).forEach(t -> {
+            threads[t] = new Thread(() -> {
+                for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
+                    output.set(j, weights.get(j) * (ssFinal * x.get(j)));
+                }
+            });
+        });
+
+        for (Thread t : threads) {
+            t.start();
+        }
+
+        for (Thread t : threads) {
+            t.join();
+        }
     }
 
     @Override
@@ -247,9 +308,91 @@ public class RMSNorm extends BenchmarkDriver {
         return executionPlan;
     }
 
+    @State(Scope.Thread)
+    public static class JMHBenchmark {
+
+        private RMSNorm rmsnorm;
+        private TornadoExecutionPlan executionPlan;
+
+        @Setup(Level.Trial)
+        public void doSetup() {
+            rmsnorm = new RMSNorm(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
+            executionPlan = rmsnorm.buildExecutionPlan();
+        }
+
+        @org.openjdk.jmh.annotations.Benchmark
+        @BenchmarkMode(Mode.AverageTime)
+        @Warmup(iterations = 2, time = 60)
+        @Measurement(iterations = 5, time = 30)
+        @OutputTimeUnit(TimeUnit.NANOSECONDS)
+        @Fork(1)
+        public void rmsNormSequential(JMHBenchmark state) {
+            state.rmsnorm.computeSequential();
+        }
+
+        @org.openjdk.jmh.annotations.Benchmark
+        @BenchmarkMode(Mode.AverageTime)
+        @Warmup(iterations = 2, time = 60)
+        @Measurement(iterations = 5, time = 30)
+        @OutputTimeUnit(TimeUnit.NANOSECONDS)
+        @Fork(1)
+        public void rmsNormParallelStreams(JMHBenchmark state) {
+            state.rmsnorm.computeWithJavaStreams();
+        }
+
+        @org.openjdk.jmh.annotations.Benchmark
+        @BenchmarkMode(Mode.AverageTime)
+        @Warmup(iterations = 2, time = 60)
+        @Measurement(iterations = 5, time = 30)
+        @OutputTimeUnit(TimeUnit.NANOSECONDS)
+        @Fork(1)
+        public void rmsNormParallelThreads(JMHBenchmark state) {
+            try {
+                state.rmsnorm.computeWithJavaThreads();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @org.openjdk.jmh.annotations.Benchmark
+        @BenchmarkMode(Mode.AverageTime)
+        @Warmup(iterations = 2, time = 60)
+        @Measurement(iterations = 5, time = 30)
+        @OutputTimeUnit(TimeUnit.NANOSECONDS)
+        @Fork(1)
+        public void rmsNormParallelVectorAPI(JMHBenchmark state) {
+            state.rmsnorm.computeWithParallelVectorAPI();
+        }
+
+        @org.openjdk.jmh.annotations.Benchmark
+        @BenchmarkMode(Mode.AverageTime)
+        @Warmup(iterations = 2, time = 60)
+        @Measurement(iterations = 5, time = 30)
+        @OutputTimeUnit(TimeUnit.NANOSECONDS)
+        @Fork(1)
+        public void rmsNormTornadoVM(JMHBenchmark state) {
+            state.executionPlan.execute();
+        }
+    }
+
+    @Override
+    void runWithJMH() throws RunnerException {
+        org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
+                .include(RMSNorm.class.getName() + ".*") //
+                .mode(Mode.AverageTime) //
+                .timeUnit(TimeUnit.NANOSECONDS) //
+                .warmupTime(TimeValue.seconds(60)) //
+                .warmupIterations(2) //
+                .measurementTime(TimeValue.seconds(30)) //
+                .measurementIterations(5) //
+                .forks(1) //
+                .build();
+        new Runner(opt).run();
+    }
+
     @Override
     public void resetOutputs() {
-       output.clear();
+        output.clear();
     }
 
     private boolean validate(FloatArray outputRef, FloatArray output) {
@@ -274,11 +417,6 @@ public class RMSNorm extends BenchmarkDriver {
     @Override
     int getSize() {
         return size;
-    }
-
-    @Override
-    void runWithJMH() throws RunnerException {
-
     }
 
     @Override

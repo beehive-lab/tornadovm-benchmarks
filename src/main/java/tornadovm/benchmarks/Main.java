@@ -50,6 +50,7 @@ public class Main {
                 case "rmsnorm" -> benchmark = new RMSNorm(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
                 case "mxmfp16" -> benchmark = new MatrixMultiplicationFP16(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMulFP16).size());
                 case "softmax" -> benchmark = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.SoftMax).size());
+                case "silu" -> benchmark = new Silu(Catalog.DEFAULT.get(Catalog.BenchmarkID.Silu).size());
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
             // remove element 0 from the list
@@ -74,6 +75,7 @@ public class Main {
             benchmarks[11] = new RMSNorm(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
             benchmarks[12] = new MatrixMultiplicationFP16(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMulFP16).size());
             benchmarks[13] = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.SoftMax).size());
+            benchmarks[14] = new Silu(Catalog.DEFAULT.get(Catalog.BenchmarkID.Silu).size());
 
             Arrays.stream(benchmarks).sequential().forEach(benchmark -> {
                 try {

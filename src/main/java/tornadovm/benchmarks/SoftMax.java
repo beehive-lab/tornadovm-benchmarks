@@ -448,7 +448,7 @@ public class SoftMax extends BenchmarkDriver {
     public void validate(int runID) {
         if (runID == 0) {
             if (streams) {
-                System.out.println(" -- Result Correct Streams? " + validate(xRef, xStreams));
+                System.out.println(" -- Result Correct? " + validate(xRef, xStreams));
             } else {
                 System.out.println(" -- Result Correct? " + validate(xRef, x));
             }
@@ -465,7 +465,7 @@ public class SoftMax extends BenchmarkDriver {
 
     @Override
     String getName() {
-        return "RMSNorm";
+        return "softmax";
     }
 
     @Override

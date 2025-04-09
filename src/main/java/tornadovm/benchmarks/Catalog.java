@@ -69,6 +69,7 @@ public class Catalog {
         NBody("nbody"),
         RMSNORM("rmsnorm"),
         Saxpy("saxpy"),
+        Silu("silu"),
         SoftMax("softmax");
 
         String id;
@@ -107,8 +108,10 @@ public class Catalog {
         DEFAULT.put(BenchmarkID.NBody, new DefaultCatalog(1, 16384));
         DEFAULT.put(BenchmarkID.RMSNORM, new DefaultCatalog(1, 512));
         DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 4));
+        DEFAULT.put(BenchmarkID.Silu, new DefaultCatalog(1, 16));
         DEFAULT.put(BenchmarkID.SoftMax, new DefaultCatalog(1, 512));
     }
 
     private Catalog() {}
 }
+

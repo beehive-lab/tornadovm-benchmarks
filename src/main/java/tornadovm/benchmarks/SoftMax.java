@@ -75,7 +75,7 @@ public class SoftMax extends BenchmarkDriver {
         xRef = new FloatArray(size);
         xInit = new FloatArray(size);
         x = new FloatArray(size);
-        temp = new FloatArray(size);
+        temp = new FloatArray(1);
         xStreams = new Float[size];
         init();
         setInit();

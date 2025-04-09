@@ -341,7 +341,7 @@ public class SoftMax extends BenchmarkDriver {
 
         @Setup(Level.Trial)
         public void doSetup() {
-            rmsnorm = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
+            rmsnorm = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.SoftMax).size());
             executionPlan = rmsnorm.buildExecutionPlan();
         }
 
@@ -471,7 +471,7 @@ public class SoftMax extends BenchmarkDriver {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        SoftMax benchmark = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
+        SoftMax benchmark = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.SoftMax).size());
         benchmark.run(args);
     }
 }

@@ -158,8 +158,8 @@ public class RMSNorm extends BenchmarkDriver {
         }
 
         float ss = 0.0f;
-        for (int i = 0; i < reduction.length; i++) {
-            ss += reduction[i];
+        for (float v : reduction) {
+            ss += v;
         }
         ss /= size;
         ss += 1e-5f;
@@ -183,6 +183,9 @@ public class RMSNorm extends BenchmarkDriver {
         }
     }
 
+    /**
+     * Single threaded with Vector API.
+     */
     @Override
     public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;

@@ -4,6 +4,13 @@ TornadoVM Benchmark Suite. **This is a work in progress** and it is a framework 
 the TornadoVM applications with Java Streams and Java Vector API. 
 Not all implementations contain the Java Vector API at the moment. 
 
+
+Note: this benchmarking suite is currently under development and definition. 
+Some kernels may not be suitable due to lack of relevance or input size limitations 
+on certain accelerators. The suite aims to showcase code diversification, with a focus on 
+LLM, physics, and math simulation workloads.
+
+
 ## How to build?
 
 

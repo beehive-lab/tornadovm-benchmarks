@@ -62,6 +62,7 @@ public class Catalog {
         JuliaSets("JuliaSets"),
         Mandelbrot("mandelbrot"),
         MatrixMul("mxm"),
+        MatrixMulFP16("mxmF16"),
         MatrixTranspose("mt"),
         MatrixVector("mxv"),
         Montecarlo("montecarlo"),
@@ -98,6 +99,7 @@ public class Catalog {
         DEFAULT.put(BenchmarkID.JuliaSets, new DefaultCatalog(2, 4096));
         DEFAULT.put(BenchmarkID.Mandelbrot, new DefaultCatalog(1, 512));
         DEFAULT.put(BenchmarkID.MatrixMul, new DefaultCatalog(2, 1024));
+        DEFAULT.put(BenchmarkID.MatrixMulFP16, new DefaultCatalog(2, 1024));
         DEFAULT.put(BenchmarkID.MatrixTranspose, new DefaultCatalog(2, 8192));
         DEFAULT.put(BenchmarkID.MatrixVector, new DefaultCatalog(1, 8192 * 2));
         DEFAULT.put(BenchmarkID.Montecarlo, new DefaultCatalog(1, 16777216 * 8));

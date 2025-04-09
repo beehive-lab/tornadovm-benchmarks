@@ -48,6 +48,7 @@ public class Main {
                 case "nbody" -> benchmark = new NBody(Catalog.DEFAULT.get(Catalog.BenchmarkID.NBody).size());
                 case "juliaset" -> benchmark = new JuliaSets(Catalog.DEFAULT.get(Catalog.BenchmarkID.JuliaSets).size());
                 case "rmsnorm" -> benchmark = new RMSNorm(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
+                case "mxmfp16" -> benchmark = new MatrixMultiplicationFP16(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMulFP16).size());
                 default -> throw new IllegalArgumentException("Invalid benchmark: " + benchmarkName);
             }
             // remove element 0 from the list
@@ -70,6 +71,7 @@ public class Main {
             benchmarks[9] = new NBody(Catalog.DEFAULT.get(Catalog.BenchmarkID.NBody).size());
             benchmarks[10] = new JuliaSets(Catalog.DEFAULT.get(Catalog.BenchmarkID.JuliaSets).size());
             benchmarks[11] = new RMSNorm(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
+            benchmarks[12] = new MatrixMultiplicationFP16(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMulFP16).size());
 
             Arrays.stream(benchmarks).sequential().forEach(benchmark -> {
                 try {

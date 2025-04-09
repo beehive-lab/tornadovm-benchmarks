@@ -38,10 +38,14 @@ import java.util.Random;
 import java.util.stream.IntStream;
 
 /**
- * How to run?
+ * Kernel taken from Llama2.cpp. This kernel is used as a first kernel in the chain
+ * to perform LLM local inference. It contains a reduction and a map operation.
+ *
+ * <p>How to run?
  * <code>
  *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.RMSNorm
  * </code>
+ * </p>
  */
 public class RMSNorm extends BenchmarkDriver {
 
@@ -85,12 +89,11 @@ public class RMSNorm extends BenchmarkDriver {
         }
     }
 
-    // TODO: Note that this version can be even slower than the sequential one due to type
-    // marshalling to get the streams to perform a parallel reduction.
+    // TODO: Note that this version can be even slower than the sequential one due to type marshalling to get the streams to perform a parallel reduction.
     @Override
     public void computeWithJavaStreams() {
         Float[] temp = new Float[size];
-        // Vector multiplication
+        // Split the reduction into a map and then the reduction
         IntStream.range(0, size).parallel().forEach(i -> {
             temp[i] = x.get(i) * x.get(i);
         });
@@ -106,7 +109,7 @@ public class RMSNorm extends BenchmarkDriver {
         ss = 1.0f / TornadoMath.sqrt(ss);
         final float ssFinal = ss;
 
-        // final normalization
+        // final normalization (map operation)
         IntStream.range(0, size) //
                 .parallel()      //
                 .forEach(i -> { //
@@ -116,7 +119,7 @@ public class RMSNorm extends BenchmarkDriver {
 
     @Override
     public void computeWithJavaThreads() throws InterruptedException {
-        throw new UnsupportedOperationException("");
+        //throw new UnsupportedOperationException("");
     }
 
     @Override
@@ -125,12 +128,13 @@ public class RMSNorm extends BenchmarkDriver {
         final int loopBound = species.loopBound(size);
         final long FLOAT_BYTES = 4;
         int i = 0;
-        for (; i < size; i += loopBound) {
+        float ss = 0.0f;
+        for (; i < loopBound; i += species.length()) {
             FloatVector vA = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            output.set(0, vA.mul(vA).reduceLanes(VectorOperators.ADD));
+            ss += vA.mul(vA).reduceLanes(VectorOperators.ADD);
         }
 
-        float ss = output.get(0);
+        // The remaining part is done sequentially
         for (; i < size; i++) {
             ss += x.get(i) * x.get(i);
         }
@@ -141,12 +145,13 @@ public class RMSNorm extends BenchmarkDriver {
 
         // normalize and scale
         i = 0;
-        for (; i < size; i += loopBound) {
-            FloatVector vA = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            FloatVector vB = FloatVector.fromMemorySegment(species, weights.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            FloatVector mul = vB.mul(vA.mul(ss));
-            mul.intoMemorySegment(output.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+        for (; i < loopBound; i += species.length()) {
+            FloatVector vX = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            FloatVector vW = FloatVector.fromMemorySegment(species, weights.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            FloatVector result = vW.mul(vX.mul(ss));
+            result.intoMemorySegment(output.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
         }
+        // The remaining part is done sequentially
         for (; i < size; i++) {
             output.set(i,  weights.get(i) * (ss * x.get(i)));
         }

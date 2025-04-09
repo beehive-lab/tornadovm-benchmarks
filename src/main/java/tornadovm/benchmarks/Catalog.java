@@ -68,7 +68,8 @@ public class Catalog {
         Montecarlo("montecarlo"),
         NBody("nbody"),
         RMSNORM("rmsnorm"),
-        Saxpy("saxpy");
+        Saxpy("saxpy"),
+        SoftMax("softmax");
 
         String id;
         BenchmarkID(String id) {
@@ -106,6 +107,7 @@ public class Catalog {
         DEFAULT.put(BenchmarkID.NBody, new DefaultCatalog(1, 16384));
         DEFAULT.put(BenchmarkID.RMSNORM, new DefaultCatalog(1, 512));
         DEFAULT.put(BenchmarkID.Saxpy, new DefaultCatalog(1, 16777216 * 4));
+        DEFAULT.put(BenchmarkID.SoftMax, new DefaultCatalog(1, 512));
     }
 
     private Catalog() {}

@@ -47,88 +47,97 @@ import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /**
- * Kernel taken from Llama2.cpp. This kernel is used as a first kernel in the chain
- * to perform LLM local inference. It contains a reduction and a map operation.
- *
  * <p>How to run?
  * <code>
- *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.RMSNorm
+ *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.SoftMax
  * </code>
  * </p>
  */
-public class RMSNorm extends BenchmarkDriver {
+public class SoftMax extends BenchmarkDriver {
 
     private final int size;
-    private FloatArray outputRef;
-    private FloatArray temp;
-    private FloatArray output;
+    private FloatArray xRef;
+    private FloatArray xInit;
     private FloatArray x;
-    private FloatArray weights;
+    private FloatArray temp;
+    private Float[] xStreams;
+    boolean streams;
 
-    public RMSNorm(int size) {
+    public SoftMax(int size) {
         this.size = size;
-        outputRef = new FloatArray(size);
-        output = new FloatArray(size);
-        temp = new FloatArray(size);
+        xRef = new FloatArray(size);
+        xInit = new FloatArray(size);
         x = new FloatArray(size);
-        weights = new FloatArray(size);
+        temp = new FloatArray(size);
+        xStreams = new Float[size];
         init();
+        setInit();
     }
 
     private void init() {
         Random rand = new Random(71);
-        for (int i = 0; i < size; i++) {
-            x.set(i, rand.nextFloat());
-            weights.set(i, rand.nextFloat());
-        }
+        IntStream.range(0, size).forEach(i -> {
+            xInit.set(i, rand.nextFloat());
+            xRef.set(i, xInit.get(i));
+            xStreams[i] = xInit.get(i);
+        });
+    }
+
+    private void setInit() {
+        IntStream.range(0, size).forEach(i -> x.set(i, xInit.get(i)));
     }
 
     @Override
     public void computeSequential() {
-        float ss = 0.0f;
-        for (int i = 0; i < size; i++) {
-            ss += x.get(i) * x.get(i);
+        // find max value (for numerical stability)
+        float max_val = xRef.get(0);
+        for (int i = 1; i < size; i++) {
+            if (xRef.get(i) > max_val) {
+                max_val = xRef.get(i);
+            }
         }
-        ss /= size;
-        ss += 1e-5f;
-        ss = 1.0f / TornadoMath.sqrt(ss);
-        // normalize and scale
+        // exp and sum
+        float sum = 0.0f;
         for (int i = 0; i < size; i++) {
-            outputRef.set(i,  weights.get(i) * (ss * x.get(i)));
+            xRef.set(i, TornadoMath.exp(xRef.get(i) - max_val));
+            sum += xRef.get(i);
+        }
+        // normalize
+        for (int i = 0; i < size; i++) {
+            xRef.set(i, xRef.get(i) / sum);
         }
     }
 
-    // TODO: Note that this version can be even slower than the sequential one due to type marshalling to get the streams to perform a parallel reduction.
+    // TODO: Similar to the RMSNorm, this version can be even slower than the sequential one due to type marshalling to get the streams to perform a parallel reduction.
     @Override
     public void computeWithJavaStreams() {
-        // Split the reduction into a map and then the reduction
-        Float[] temp = new Float[size];
-        IntStream.range(0, size).parallel().forEach(i -> {
-            temp[i] = x.get(i) * x.get(i);
-        });
-
-        // Reduction
-        float ss = Arrays.stream(temp)
+        // find max value (1for numerical stability)
+        Optional<Float> max = Arrays //
+                .stream(xStreams) //
                 .parallel() //
-                .reduce(0.0f, Float::sum);
+                .max(Comparator.comparingDouble(Float::floatValue));
+        float max_val = max.orElse(0.0f);
 
-        // normalize and scale
-        ss /= size;
-        ss += 1e-5f;
-        ss = 1.0f / TornadoMath.sqrt(ss);
-        final float ssFinal = ss;
+        // exp and sum
+        IntStream.range(0, size)
+                .parallel()
+                .forEach(i -> xStreams[i] = TornadoMath.exp(xRef.get(i) - max_val));
 
-        // final normalization (map operation)
-        IntStream.range(0, size) //
-                .parallel()      //
-                .forEach(i -> { //
-                    output.set(i, (weights.get(i) * (ssFinal * x.get(i)))); //
+        final float sum = Arrays.stream(xStreams).reduce(0.0f, Float::sum);
+        // normalization
+        IntStream.range(0, size)
+                .parallel()
+                .forEach(i -> {
+                    xStreams[i] = xStreams[i] / sum;
                 });
+        streams = true;
     }
 
     private void runThreads(Thread[] threads) throws InterruptedException {
@@ -143,7 +152,7 @@ public class RMSNorm extends BenchmarkDriver {
 
     @Override
     public void computeWithJavaThreads() throws InterruptedException {
-        Range[] ranges = Utils.createRangesForCPU(output.getSize());
+        Range[] ranges = Utils.createRangesForCPU(x.getSize());
         final int maxProcessors = Runtime.getRuntime().availableProcessors();
 
         Thread[] threads = new Thread[maxProcessors];
@@ -151,9 +160,40 @@ public class RMSNorm extends BenchmarkDriver {
         float[] reduction = new float[maxProcessors];
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
+                float maxValue = Float.MIN_VALUE;
+                for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
+                    if (x.get(j) > maxValue) {
+                        maxValue = x.get(j);
+                    }
+                }
+                reduction[t] = maxValue;
+            });
+        });
+
+        runThreads(threads);
+
+        float max_value = Float.MIN_VALUE;
+        for (float v : reduction) {
+            if (v > max_value) {
+                max_value = v;
+            }
+        }
+        final float max_val = max_value;
+        IntStream.range(0, threads.length).forEach(t -> {
+            threads[t] = new Thread(() -> {
+                for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
+                    x.set(j, TornadoMath.exp(x.get(j) - max_val));
+                }
+            });
+        });
+        runThreads(threads);
+
+        // Reduction
+        IntStream.range(0, threads.length).forEach(t -> {
+            threads[t] = new Thread(() -> {
                 float ss = 0.0f;
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    ss += x.get(j) * x.get(j);
+                    ss += x.get(j);
                 }
                 reduction[t] = ss;
             });
@@ -161,19 +201,18 @@ public class RMSNorm extends BenchmarkDriver {
 
         runThreads(threads);
 
+        // Sum reduction on CPU
         float ss = 0.0f;
         for (float v : reduction) {
             ss += v;
         }
-        ss /= size;
-        ss += 1e-5f;
-        ss = 1.0f / TornadoMath.sqrt(ss);
 
-        final float ssFinal = ss;
+        final float sum = ss;
+
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    output.set(j, weights.get(j) * (ssFinal * x.get(j)));
+                    x.set(j , x.get(j) / sum);
                 }
             });
         });
@@ -190,69 +229,65 @@ public class RMSNorm extends BenchmarkDriver {
         final int loopBound = species.loopBound(size);
         final long FLOAT_BYTES = 4;
         int i = 0;
-        float ss = 0.0f;
+        float maxValue = 0.0f;
         for (; i < loopBound; i += species.length()) {
             FloatVector vA = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            ss += vA.mul(vA).reduceLanes(VectorOperators.ADD);
+            maxValue = vA.mul(vA).reduceLanes(VectorOperators.MAX);
         }
 
         // The remaining part is done sequentially
         for (; i < size; i++) {
-            ss += x.get(i) * x.get(i);
+            if (x.get(i) > maxValue) {
+                maxValue = x.get(i);
+            }
+        }
+        i = 0;
+
+        // exp and sum
+        float sum = 0.0f;
+        for (; i < loopBound; i += species.length()) {
+            FloatVector vA = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            vA.intoMemorySegment(x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            sum += vA.reduceLanes(VectorOperators.ADD);
         }
 
-        ss /= size;
-        ss += 1e-5f;
-        ss = 1.0f / TornadoMath.sqrt(ss);
+        // The remaining part is done sequentially
+        for (; i < size; i++) {
+            sum += x.get(i);
+        }
 
-        // normalize and scale
         i = 0;
         for (; i < loopBound; i += species.length()) {
             FloatVector vX = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            FloatVector vW = FloatVector.fromMemorySegment(species, weights.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            FloatVector result = vW.mul(vX.mul(ss));
-            result.intoMemorySegment(output.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            FloatVector result = vX.div(sum);
+            result.intoMemorySegment(x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
         }
         // The remaining part is done sequentially
         for (; i < size; i++) {
-            output.set(i,  weights.get(i) * (ss * x.get(i)));
+            x.set(i,  x.get(i) /  sum);
         }
     }
 
-    // ======================================================================
-    // TornadoVM Kernels
-    private static void reduce(@Reduce FloatArray output, FloatArray x) {
-        output.set(0, 0.0f);
-        for (@Parallel int i = 0; i < x.getSize(); i++) {
-            float val = x.get(i) * x.get(i);
-            output.set(0, output.get(0) + val);
+    private static void reductionOneBlock(KernelContext context, FloatArray output, FloatArray x) {
+        int gid = context.globalIdx;
+        int lid = context.localIdx;
+        int groupSize = context.localGroupSizeX;
+        float[] localX = context.allocateFloatLocalArray(1024);
+        localX[lid] = x.get(gid);
+        for (int stride = (groupSize / 2); stride > 0; stride /= 2) {
+            context.localBarrier();
+            if (lid < stride) {
+                localX[lid] = TornadoMath.max(localX[lid], localX[lid + stride]);
+            }
+        }
+
+        if (lid == 0) {
+            // store max
+            output.set(0, localX[0]);
         }
     }
 
-    private static void singleNorm(FloatArray output, int size) {
-        float ss = output.get(0);
-        ss /= size;
-        ss += 1e-5f;
-        ss = 1.0f / TornadoMath.sqrt(ss);
-        output.set(0, ss);
-    }
-
-    private static void map(FloatArray output, FloatArray weights, FloatArray x) {
-        float acc = 1.0f;
-        for (@Parallel int i = 0; i < x.getSize(); i++) {
-            output.set(i,  weights.get(i) * (acc * x.get(i)));
-        }
-    }
-
-
-    /** Reductions launched in a single thread-block
-     *
-     * @param context
-     * @param output
-     * @param x
-     * @param weights
-     */
-    private static void reductionOneBlock(KernelContext context, FloatArray output, FloatArray x, FloatArray weights) {
+    private static void reductionOneBlock2(KernelContext context, FloatArray output, FloatArray x) {
         int gid = context.globalIdx;
         int lid = context.localIdx;
         int groupSize = context.localGroupSizeX;
@@ -267,42 +302,31 @@ public class RMSNorm extends BenchmarkDriver {
         }
 
         if (lid == 0) {
-            float ss = localX[0];
-            ss /= x.getSize();
-            ss += 1e-5f;
-            ss = 1.0f / TornadoMath.sqrt(ss);
-            output.set(0, ss);
+            output.set(0, localX[0]);
         }
     }
 
-    private static void reductionOneBlock2(KernelContext context, FloatArray output, FloatArray x, FloatArray weights, FloatArray temp) {
+    private static void reductionOneBlock3(KernelContext context, FloatArray temp, FloatArray x) {
         int gid = context.globalIdx;
-        float ss = temp.get(0);
-        output.set(gid, weights.get(gid) * (ss * x.get(gid)));
+        float sum = temp.get(0);
+        x.set(gid, x.get(gid) / sum);
     }
-
-    // ======================================================================
 
     @Override
     public TornadoExecutionPlan buildExecutionPlan() {
-        TaskGraph taskGraphLoop = new TaskGraph("benchmark")
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, weights, x) //
-                .task("reduce", RMSNorm::reduce, output, x) //
-                .task("singleNorm", RMSNorm::singleNorm, output, size) //
-                .task("map", RMSNorm::map, output, weights, x) //
-                .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
-
         KernelContext kernelContext = new KernelContext();
         TaskGraph taskGraph = new TaskGraph("benchmark")
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, weights, x, temp) //
-                .task("reductionsOneBlock", RMSNorm::reductionOneBlock, kernelContext, temp, x, weights) //
-                .task("mapContext", RMSNorm::reductionOneBlock2, kernelContext, output, x, weights, temp)  //
-                .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
+                .transferToDevice(DataTransferMode.FIRST_EXECUTION, x, temp) //
+                .task("softmax.reduceMax", SoftMax::reductionOneBlock, kernelContext, temp, x) //
+                .task("softmax.reduceExp", SoftMax::reductionOneBlock2, kernelContext, temp, x)  //
+                .task("softmax.map", SoftMax::reductionOneBlock3, kernelContext, temp, x)  //
+                .transferToHost(DataTransferMode.EVERY_EXECUTION, x);
 
         WorkerGrid workerGrid = new WorkerGrid1D(size);
         workerGrid.setLocalWork(size, 1, 1);
-        GridScheduler gridScheduler = new GridScheduler("benchmark.reductionsOneBlock", workerGrid);
-        gridScheduler.addWorkerGrid("benchmark.mapContext", workerGrid);
+        GridScheduler gridScheduler = new GridScheduler("benchmark.softmax.reduceMax", workerGrid);
+        gridScheduler.addWorkerGrid("benchmark.softmax.reduceExp", workerGrid);
+        gridScheduler.addWorkerGrid("benchmark.softmax.map", workerGrid);
 
         TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
         executionPlan.withGridScheduler(gridScheduler);
@@ -312,12 +336,12 @@ public class RMSNorm extends BenchmarkDriver {
     @State(Scope.Thread)
     public static class JMHBenchmark {
 
-        private RMSNorm rmsnorm;
+        private SoftMax rmsnorm;
         private TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
         public void doSetup() {
-            rmsnorm = new RMSNorm(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
+            rmsnorm = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
             executionPlan = rmsnorm.buildExecutionPlan();
         }
 
@@ -327,7 +351,7 @@ public class RMSNorm extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void rmsNormSequential(JMHBenchmark state) {
+        public void softMaxSequential(JMHBenchmark state) {
             state.rmsnorm.computeSequential();
         }
 
@@ -337,7 +361,7 @@ public class RMSNorm extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void rmsNormParallelStreams(JMHBenchmark state) {
+        public void softMaxParallelStreams(JMHBenchmark state) {
             state.rmsnorm.computeWithJavaStreams();
         }
 
@@ -347,7 +371,7 @@ public class RMSNorm extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void rmsNormParallelThreads(JMHBenchmark state) {
+        public void softMaxParallelThreads(JMHBenchmark state) {
             try {
                 state.rmsnorm.computeWithJavaThreads();
             } catch (InterruptedException e) {
@@ -361,7 +385,7 @@ public class RMSNorm extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void rmsNormParallelVectorAPI(JMHBenchmark state) {
+        public void softMaxParallelVectorAPI(JMHBenchmark state) {
             state.rmsnorm.computeWithParallelVectorAPI();
         }
 
@@ -371,7 +395,7 @@ public class RMSNorm extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void rmsNormTornadoVM(JMHBenchmark state) {
+        public void softMaxTornadoVM(JMHBenchmark state) {
             state.executionPlan.execute();
         }
     }
@@ -379,7 +403,7 @@ public class RMSNorm extends BenchmarkDriver {
     @Override
     void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
-                .include(RMSNorm.class.getName() + ".*") //
+                .include(SoftMax.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
                 .timeUnit(TimeUnit.NANOSECONDS) //
                 .warmupTime(TimeValue.seconds(60)) //
@@ -393,7 +417,7 @@ public class RMSNorm extends BenchmarkDriver {
 
     @Override
     public void resetOutputs() {
-        output.clear();
+        setInit();
     }
 
     private boolean validate(FloatArray outputRef, FloatArray output) {
@@ -406,13 +430,29 @@ public class RMSNorm extends BenchmarkDriver {
         return true;
     }
 
+    private boolean validate(FloatArray outputRef, Float[] output) {
+        for (int i = 0; i < outputRef.getSize(); i++) {
+            if (Math.abs(outputRef.get(i) - output[i]) > Config.DELTA) {
+                System.out.println("ERROR: " + i + " != " + outputRef.get(i) + " vs " + output[i]);
+                return false;
+            }
+        }
+        return true;
+    }
+
+
     @Override
     public void validate(int runID) {
         if (runID == 0) {
-            System.out.println(" -- Result Correct? " + validate(outputRef, output));
+            if (streams) {
+                System.out.println(" -- Result Correct Streams? " + validate(xRef, xStreams));
+            } else {
+                System.out.println(" -- Result Correct? " + validate(xRef, x));
+            }
         } else {
             System.out.println();
         }
+        streams = false;
     }
 
     @Override
@@ -431,7 +471,7 @@ public class RMSNorm extends BenchmarkDriver {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        RMSNorm benchmark = new RMSNorm(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
+        SoftMax benchmark = new SoftMax(Catalog.DEFAULT.get(Catalog.BenchmarkID.RMSNORM).size());
         benchmark.run(args);
     }
 }

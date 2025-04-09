@@ -293,7 +293,9 @@ public class SoftMax extends BenchmarkDriver {
         int groupSize = context.localGroupSizeX;
         float[] localX = context.allocateFloatLocalArray(1024);
         localX[lid] = x.get(gid);
-        localX[lid] = localX[lid] * localX[lid];
+        float max = output.get(0);
+        localX[lid] = TornadoMath.exp(localX[lid] - max);
+        x.set(gid, localX[lid]);
         for (int stride = (groupSize / 2); stride > 0; stride /= 2) {
             context.localBarrier();
             if (lid < stride) {
@@ -302,6 +304,7 @@ public class SoftMax extends BenchmarkDriver {
         }
 
         if (lid == 0) {
+            // final sum stored in ID 0
             output.set(0, localX[0]);
         }
     }

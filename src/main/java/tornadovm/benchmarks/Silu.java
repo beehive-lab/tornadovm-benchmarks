@@ -17,6 +17,7 @@
 package tornadovm.benchmarks;
 
 import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -121,13 +122,28 @@ public class Silu extends BenchmarkDriver {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
         final long FLOAT_BYES = 4;
         final int loopBound = species.loopBound(size);
-        for (int i = 0; i < loopBound; i += species.length()) {
-            // TODO: Investigate exp function for Vector Float
-//            FloatVector a = FloatVector.fromMemorySegment(species, shb.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-//            FloatVector b = FloatVector.fromMemorySegment(species, shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-//
-//            FloatVector add = a.mul().add(b);
-//            add.intoMemorySegment(shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+        int i = 0;
+        for (; i < loopBound; i += species.length()) {
+            FloatVector vA = FloatVector.fromMemorySegment(species, shb.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+            FloatVector vB = FloatVector.fromMemorySegment(species, shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+            FloatVector mVA = vA.mul(-1.0f);
+
+            // Compute exp(x) using the Taylor Approximation: exp(x) ~= 1 + x + x^2/2!
+            Vector<Float> one = FloatVector.broadcast(species, 1.0f);
+            Vector<Float> mul = vA.mul(vA);
+            Vector<Float> half = FloatVector.broadcast(species, 0.5f);
+            Vector<Float> resultExp =  one.add(mVA).add(mul.mul(half));
+
+            Vector<Float> divB = one.add(resultExp);
+            Vector<Float> valDiv = one.div(divB);
+            valDiv = valDiv.mul(vB);
+            valDiv.intoMemorySegment(shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+        }
+        for (; i < size; i++) {
+            float val = shb.get(i);
+            val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
+            val *= shb2.get(i);
+            shb2.set(i, val);
         }
     }
 
@@ -156,15 +172,12 @@ public class Silu extends BenchmarkDriver {
     }
 
     private boolean validate(FloatArray outputRef, FloatArray output) {
-        boolean resultCorrect = true;
         for (int i = 0; i < outputRef.getSize(); i++) {
             if (Math.abs(outputRef.get(i) - output.get(i)) > Config.DELTA) {
-                //return false;
-                System.out.println(outputRef.get(i) + " != " + output.get(i));
-                resultCorrect = false;
+                return false;
             }
         }
-        return resultCorrect;
+        return true;
     }
 
     @Override

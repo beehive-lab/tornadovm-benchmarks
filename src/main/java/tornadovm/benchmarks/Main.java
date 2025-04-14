@@ -16,6 +16,25 @@
  */
 package tornadovm.benchmarks;
 
+import tornadovm.benchmarks.benchmarks.Benchmark;
+import tornadovm.benchmarks.benchmarks.Blackscholes;
+import tornadovm.benchmarks.benchmarks.BlurFilter;
+import tornadovm.benchmarks.benchmarks.DFT;
+import tornadovm.benchmarks.benchmarks.JuliaSets;
+import tornadovm.benchmarks.benchmarks.Mandelbrot;
+import tornadovm.benchmarks.benchmarks.MatrixMultiplication;
+import tornadovm.benchmarks.benchmarks.MatrixMultiplicationFP16;
+import tornadovm.benchmarks.benchmarks.MatrixTranspose;
+import tornadovm.benchmarks.benchmarks.MatrixVector;
+import tornadovm.benchmarks.benchmarks.Montecarlo;
+import tornadovm.benchmarks.benchmarks.NBody;
+import tornadovm.benchmarks.benchmarks.RMSNorm;
+import tornadovm.benchmarks.benchmarks.Saxpy;
+import tornadovm.benchmarks.benchmarks.Silu;
+import tornadovm.benchmarks.benchmarks.SoftMax;
+import tornadovm.benchmarks.utils.Catalog;
+import tornadovm.benchmarks.utils.Config;
+
 import java.util.Arrays;
 
 /**

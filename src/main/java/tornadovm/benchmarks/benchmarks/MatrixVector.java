@@ -14,7 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
@@ -33,6 +33,11 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import tornadovm.benchmarks.utils.Catalog;
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Option;
+import tornadovm.benchmarks.utils.Range;
+import tornadovm.benchmarks.utils.Utils;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
@@ -55,7 +60,7 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 /**
  * How to run?
  * <code>
- *     tornado --jvm="-Dtornado.device.memory=2GB" -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.MatrixVector
+ *     tornado --jvm="-Dtornado.device.memory=2GB" -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.benchmarks.MatrixVector
  * </code>
  */
 public class MatrixVector extends Benchmark {
@@ -393,12 +398,12 @@ public class MatrixVector extends Benchmark {
     }
 
     @Override
-    int getSize() {
+    public int getSize() {
         return size;
     }
 
     @Override
-    void runWithJMH() throws RunnerException {
+    public void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(MatrixVector.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -413,7 +418,7 @@ public class MatrixVector extends Benchmark {
     }
 
     @Override
-    void runTestAll(final int size, Option option) throws InterruptedException {
+    public void runTestAll(final int size, Option option) throws InterruptedException {
 
         // Using Panama Segments
         FloatMatrix matrix = new FloatMatrix(size, size);
@@ -536,12 +541,12 @@ public class MatrixVector extends Benchmark {
     }
 
     @Override
-    String getName() {
+    public String getName() {
         return "matrix-vector";
     }
 
     @Override
-    String printSize() {
+    public String printSize() {
         return getSize() + "x" + getSize();
     }
 

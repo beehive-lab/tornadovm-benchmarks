@@ -14,7 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
@@ -32,6 +32,10 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import tornadovm.benchmarks.utils.Catalog;
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Range;
+import tornadovm.benchmarks.utils.Utils;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
@@ -47,7 +51,7 @@ import java.util.stream.IntStream;
  * How to run?
  *
  * <code>
- *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.MatrixTranspose
+ *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.benchmarks.MatrixTranspose
  * </code>
  */
 public class MatrixTranspose extends BenchmarkDriver {
@@ -179,7 +183,7 @@ public class MatrixTranspose extends BenchmarkDriver {
     }
 
     @Override
-    int getSize() {
+    public int getSize() {
         return size;
     }
 
@@ -248,7 +252,7 @@ public class MatrixTranspose extends BenchmarkDriver {
     }
 
     @Override
-    void runWithJMH() throws RunnerException {
+    public void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(MatrixTranspose.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -263,12 +267,12 @@ public class MatrixTranspose extends BenchmarkDriver {
     }
 
     @Override
-    String getName() {
+    public String getName() {
         return "matrix-transpose";
     }
 
     @Override
-    String printSize() {
+    public String printSize() {
         return getSize() + "x" + getSize();
     }
 

@@ -14,10 +14,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
 import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -33,11 +32,14 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import tornadovm.benchmarks.utils.Catalog;
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Range;
+import tornadovm.benchmarks.utils.Utils;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
-import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
@@ -45,66 +47,52 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
-public class Silu extends BenchmarkDriver {
+public class Saxpy extends BenchmarkDriver {
 
     private final int size;
-    FloatArray shb;
-    FloatArray shb2;
-    FloatArray shb2Ref;
-    FloatArray shb2Init;
+    private float alpha = 0.2f;
+    FloatArray arrayA;
+    FloatArray arrayB;
+    FloatArray output;
+    FloatArray outputRef;
 
-    public Silu(int size) {
+    public Saxpy(int size) {
         this.size = size;
-        shb = new FloatArray(size);
-        shb2 = new FloatArray(size);
-        shb2Ref = new FloatArray(size);
-        shb2Init = new FloatArray(size);
+        output = new FloatArray(size);
+        outputRef = new FloatArray(size);
+        arrayA = new FloatArray(size);
+        arrayB = new FloatArray(size);
         Random r = new Random();
         for (int i = 0; i < size; i++) {
-            shb.set(i, r.nextFloat());
-            shb2Init.set(i, r.nextFloat());
-            shb2Ref.set(i, shb2Init.get(i));
+            arrayA.set(i, r.nextFloat());
+            arrayB.set(i, r.nextFloat());
         }
-        init();
-    }
-
-    private void init() {
-        IntStream.range(0, size).forEach(i -> shb2.set(i, shb2Init.get(i)));
     }
 
     @Override
     public void computeSequential() {
         for (int i = 0; i < size; i++) {
-            float val = shb.get(i);
-            val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
-            val *= shb2Ref.get(i);
-            shb2Ref.set(i, val);
+            outputRef.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         }
     }
 
     @Override
     public void computeWithJavaStreams() {
-        IntStream.range(0, size).parallel().forEach(i -> {
-            float val = shb.get(i);
-            val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
-            val *= shb2.get(i);
-            shb2.set(i, val);
+        IntStream.range(0, size).forEach(i -> {
+            output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         });
     }
 
     @Override
     public void computeWithJavaThreads() throws InterruptedException {
-        Range[] ranges = Utils.createRangesForCPU(shb.getSize());
+        Range[] ranges = Utils.createRangesForCPU(output.getSize());
         final int maxProcessors = Runtime.getRuntime().availableProcessors();
 
         Thread[] threads = new Thread[maxProcessors];
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    float val = shb.get(j);
-                    val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
-                    val *= shb2.get(j);
-                    shb2.set(j, val);
+                    output.set(j, alpha * arrayA.get(j) + arrayB.get(j));
                 }
             });
         });
@@ -121,54 +109,32 @@ public class Silu extends BenchmarkDriver {
     public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
         final long FLOAT_BYES = 4;
-        final int loopBound = species.loopBound(size);
-        int i = 0;
-        for (; i < loopBound; i += species.length()) {
-            FloatVector vA = FloatVector.fromMemorySegment(species, shb.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-            FloatVector vB = FloatVector.fromMemorySegment(species, shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-            FloatVector mVA = vA.mul(-1.0f);
-
-            // Compute exp(x) using the Taylor Approximation: exp(x) ~= 1 + x + x^2/2!
-            Vector<Float> one = FloatVector.broadcast(species, 1.0f);
-            Vector<Float> mul = vA.mul(vA);
-            Vector<Float> half = FloatVector.broadcast(species, 0.5f);
-            Vector<Float> resultExp =  one.add(mVA).add(mul.mul(half));
-
-            Vector<Float> divB = one.add(resultExp);
-            Vector<Float> valDiv = one.div(divB);
-            valDiv = valDiv.mul(vB);
-            valDiv.intoMemorySegment(shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-        }
-        for (; i < size; i++) {
-            float val = shb.get(i);
-            val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
-            val *= shb2.get(i);
-            shb2.set(i, val);
+        for (int i = 0; i < size; i += species.length()) {
+            FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+            FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+            FloatVector add = a.mul(alpha).add(b);
+            add.intoMemorySegment(output.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
         }
     }
 
-    private static void computeWithTornadoVM(int size, FloatArray shb, FloatArray shb2) {
-        for (@Parallel int i = 0; i < size; i++) {
-            float val = shb.get(i);
-            val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
-            val *= shb2.get(i);
-            shb2.set(i, val);
+    private static void computeWithTornadoVM(float alpha, FloatArray arrayA, FloatArray arrayB, FloatArray output) {
+        for (@Parallel int i = 0; i < arrayA.getSize(); i++) {
+            output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         }
     }
 
     @Override
     public TornadoExecutionPlan buildExecutionPlan() {
-        init();
         TaskGraph taskGraph = new TaskGraph("benchmark")
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, shb)
-                .task("silu", Silu::computeWithTornadoVM, size, shb, shb2)
-                .transferToHost(DataTransferMode.EVERY_EXECUTION, shb2);
+                .transferToDevice(DataTransferMode.FIRST_EXECUTION, arrayA, arrayB)
+                .task("saxpy", Saxpy::computeWithTornadoVM, alpha, arrayA, arrayB, output)
+                .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }
 
     @Override
     public void resetOutputs() {
-        init();
+        output.clear();
     }
 
     private boolean validate(FloatArray outputRef, FloatArray output) {
@@ -183,27 +149,27 @@ public class Silu extends BenchmarkDriver {
     @Override
     public void validate(int run) {
         if (run == 0) {
-            System.out.println(" -- Result Correct? " + validate(shb2Ref, shb2));
+            System.out.println(" -- Result Correct? " + validate(outputRef, output));
         } else {
             System.out.println();
         }
     }
 
     @Override
-    int getSize() {
+    public int getSize() {
         return size;
     }
 
     @State(Scope.Thread)
     public static class JMHBenchmark {
 
-        private Silu siluKernel;
+        private Saxpy saxpy;
         private TornadoExecutionPlan executionPlan;
 
         @Setup(Level.Trial)
         public void doSetup() {
-            siluKernel = new Silu(Catalog.DEFAULT.get(Catalog.BenchmarkID.Silu).size());
-            executionPlan = siluKernel.buildExecutionPlan();
+            saxpy = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
+            executionPlan = saxpy.buildExecutionPlan();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -212,8 +178,8 @@ public class Silu extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void siluSequential(JMHBenchmark state) {
-            state.siluKernel.computeSequential();
+        public void saxpySequential(JMHBenchmark state) {
+            state.saxpy.computeSequential();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -222,8 +188,8 @@ public class Silu extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void siluParallelStreams(JMHBenchmark state) {
-            state.siluKernel.computeWithJavaStreams();
+        public void saxpyParallelStreams(JMHBenchmark state) {
+            state.saxpy.computeWithJavaStreams();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -232,9 +198,9 @@ public class Silu extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void siluParallelThreads(JMHBenchmark state) {
+        public void saxpyParallelThreads(JMHBenchmark state) {
             try {
-                state.siluKernel.computeWithJavaThreads();
+                state.saxpy.computeWithJavaThreads();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -246,8 +212,8 @@ public class Silu extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void siluParallelVectorAPI(JMHBenchmark state) {
-            state.siluKernel.computeWithParallelVectorAPI();
+        public void saxpyParallelVectorAPI(JMHBenchmark state) {
+            state.saxpy.computeWithParallelVectorAPI();
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -256,15 +222,15 @@ public class Silu extends BenchmarkDriver {
         @Measurement(iterations = 5, time = 30)
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
-        public void siluTornadoVM(JMHBenchmark state) {
+        public void saxpyTornadoVM(JMHBenchmark state) {
             state.executionPlan.execute();
         }
     }
 
     @Override
-    void runWithJMH() throws RunnerException {
+    public void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
-                .include(Silu.class.getName() + ".*") //
+                .include(Saxpy.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
                 .timeUnit(TimeUnit.NANOSECONDS) //
                 .warmupTime(TimeValue.seconds(60)) //
@@ -277,17 +243,17 @@ public class Silu extends BenchmarkDriver {
     }
 
     @Override
-    String getName() {
-        return "silu";
+    public String getName() {
+        return "saxpy";
     }
 
     @Override
-    String printSize() {
+    public String printSize() {
         return getSize() + "";
     }
 
     public static void main(String[] args) throws InterruptedException {
-        Silu benchmark = new Silu(Catalog.DEFAULT.get(Catalog.BenchmarkID.Silu).size());
+        Saxpy benchmark = new Saxpy(Catalog.DEFAULT.get(Catalog.BenchmarkID.Saxpy).size());
         benchmark.run(args);
     }
 }

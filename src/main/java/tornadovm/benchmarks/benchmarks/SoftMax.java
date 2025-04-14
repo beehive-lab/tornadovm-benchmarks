@@ -14,7 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
@@ -33,14 +33,16 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import tornadovm.benchmarks.utils.Catalog;
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Range;
+import tornadovm.benchmarks.utils.Utils;
 import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.KernelContext;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.WorkerGrid;
 import uk.ac.manchester.tornado.api.WorkerGrid1D;
-import uk.ac.manchester.tornado.api.annotations.Parallel;
-import uk.ac.manchester.tornado.api.annotations.Reduce;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
@@ -56,7 +58,7 @@ import java.util.stream.IntStream;
 /**
  * <p>How to run?
  * <code>
- *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.SoftMax
+ *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.benchmarks.SoftMax
  * </code>
  * </p>
  */
@@ -404,7 +406,7 @@ public class SoftMax extends BenchmarkDriver {
     }
 
     @Override
-    void runWithJMH() throws RunnerException {
+    public void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(SoftMax.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -459,17 +461,17 @@ public class SoftMax extends BenchmarkDriver {
     }
 
     @Override
-    int getSize() {
+    public int getSize() {
         return size;
     }
 
     @Override
-    String getName() {
+    public String getName() {
         return "softmax";
     }
 
     @Override
-    String printSize() {
+    public String printSize() {
         return getSize() + "";
     }
 

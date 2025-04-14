@@ -14,21 +14,23 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
 import org.openjdk.jmh.runner.RunnerException;
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Option;
 
 public abstract class Benchmark {
 
-    abstract int getSize();
+    public abstract int getSize();
 
-    abstract void runWithJMH() throws RunnerException;
+    public abstract void runWithJMH() throws RunnerException;
 
-    abstract void runTestAll(int size, Option option) throws InterruptedException;
+    public abstract void runTestAll(int size, Option option) throws InterruptedException;
 
-    abstract String getName();
+    public abstract String getName();
 
-    abstract String printSize();
+    public abstract String printSize();
 
     private void printMessageInfo(String message) {
         System.out.println(Config.Colours.BLUE + message + Config.Colours.RESET);

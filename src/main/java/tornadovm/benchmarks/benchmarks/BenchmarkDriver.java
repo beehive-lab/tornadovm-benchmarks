@@ -14,8 +14,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Option;
+import tornadovm.benchmarks.utils.Utils;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
@@ -39,7 +42,7 @@ public abstract class BenchmarkDriver extends Benchmark {
     public abstract void validate(int runID);
 
     @Override
-    void runTestAll(int size, Option option) throws InterruptedException {
+    public void runTestAll(int size, Option option) throws InterruptedException {
         ArrayList<ArrayList<Long>> timers = new ArrayList<>();
         StringBuilder headerTable = new StringBuilder();
 

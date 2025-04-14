@@ -14,7 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
@@ -33,6 +33,7 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import tornadovm.benchmarks.utils.Catalog;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
@@ -47,7 +48,7 @@ import java.util.stream.IntStream;
 /**
  * How to run?
  * <code>
- *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.DFT
+ *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.benchmarks.DFT
  * </code>
  */
 public class DFT extends BenchmarkDriver {
@@ -311,12 +312,12 @@ public class DFT extends BenchmarkDriver {
     }
 
     @Override
-    int getSize() {
+    public int getSize() {
         return size;
     }
 
     @Override
-    void runWithJMH() throws RunnerException {
+    public void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(DFT.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -331,12 +332,12 @@ public class DFT extends BenchmarkDriver {
     }
 
     @Override
-    String getName() {
+    public String getName() {
         return "dft";
     }
 
     @Override
-    String printSize() {
+    public String printSize() {
         return "" + getSize();
     }
 

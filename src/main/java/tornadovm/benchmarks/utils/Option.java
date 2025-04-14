@@ -14,7 +14,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.utils;
 
-public record Range(int min, int max) {
+public enum Option {
+    JAVA_SEQ_ONLY,
+    JAVA_ONLY,
+    TORNADO_ONLY,
+    ALL
 }

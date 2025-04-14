@@ -14,7 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -30,6 +30,10 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import tornadovm.benchmarks.utils.Catalog;
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Range;
+import tornadovm.benchmarks.utils.Utils;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
@@ -193,9 +197,10 @@ public class JuliaSets extends BenchmarkDriver {
     }
 
     @Override
-    int getSize() {
+    public int getSize() {
         return size;
     }
+
     @State(Scope.Thread)
     public static class JMHBenchmark {
         private JuliaSets juliaSet;
@@ -259,7 +264,7 @@ public class JuliaSets extends BenchmarkDriver {
     }
 
     @Override
-    void runWithJMH() throws RunnerException {
+    public void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
                 .include(JuliaSets.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
@@ -274,12 +279,12 @@ public class JuliaSets extends BenchmarkDriver {
     }
 
     @Override
-    String getName() {
+    public String getName() {
         return "juliasets";
     }
 
     @Override
-    String printSize() {
+    public String printSize() {
         return getSize() + "x" + getSize();
     }
 

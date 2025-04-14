@@ -14,11 +14,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package tornadovm.benchmarks;
+package tornadovm.benchmarks.benchmarks;
 
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.VectorOperators;
-import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -33,6 +30,11 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
+import tornadovm.benchmarks.utils.Catalog;
+import tornadovm.benchmarks.utils.Config;
+import tornadovm.benchmarks.utils.Option;
+import tornadovm.benchmarks.utils.Range;
+import tornadovm.benchmarks.utils.Utils;
 import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
@@ -42,32 +44,32 @@ import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
-import uk.ac.manchester.tornado.api.types.matrix.Matrix2DFloat;
+import uk.ac.manchester.tornado.api.types.HalfFloat;
+import uk.ac.manchester.tornado.api.types.arrays.HalfFloatArray;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
+import static java.lang.foreign.ValueLayout.JAVA_SHORT;
 
 /**
  * How to run?
  * <code>
- *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.MatrixMultiplication
+ *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.benchmarks.MatrixMultiplicationFP16
  * </code>
  */
-public class MatrixMultiplication extends Benchmark {
+public class MatrixMultiplicationFP16 extends Benchmark {
 
     int size;
     private double FLOP;
     private final static float TIME_SCALE_SECS = 1.0E09f;
 
-    public MatrixMultiplication(int size) {
+    public MatrixMultiplicationFP16(int size) {
         this.size = size;
         FLOP = 2 * Math.pow(size, 3);
     }
@@ -75,36 +77,39 @@ public class MatrixMultiplication extends Benchmark {
     /**
      * Float MxN Matrix
      */
-    private static class FloatMatrix {
+    private static class FP16Matrix {
 
-        private static final int FLOAT_SIZE = 4;
+        private static final int HALF_FLOAT_SIZE = 2;
 
         private final int m;
         private final int n;
         private final MemorySegment segment;
 
-        public FloatMatrix(int m, int n) {
+        public FP16Matrix(int m, int n) {
             this.m = m;
             this.n = n;
-            final long segmentByteSize = n * m * FLOAT_SIZE;
+            final long segmentByteSize = n * m * HALF_FLOAT_SIZE;
             segment = Arena.ofAuto().allocate(segmentByteSize, 64);
         }
 
         public void set(int i, int j, float value) {
             final int index = i * m + j;
-            segment.set(JAVA_FLOAT, index * FLOAT_SIZE, value);
+            short val = Float.floatToFloat16(value);
+            segment.set(JAVA_SHORT, index * HALF_FLOAT_SIZE, val);
         }
 
         public float get(int i, int j) {
             final int index = i * m + j;
-            return segment.get(JAVA_FLOAT, index * FLOAT_SIZE);
+            short val = segment.get(JAVA_SHORT, index * HALF_FLOAT_SIZE);
+            return Float.float16ToFloat(val);
         }
 
         public void initRandom() {
             Random r = new Random(71);
             for (int i = 0; i < m; i++) {
                 for (int j = 0; j < n; j++) {
-                    set(i, j, r.nextFloat());
+                    float val = r.nextFloat();
+                    set(i, j, Float.floatToFloat16(val));
                 }
             }
         }
@@ -129,7 +134,7 @@ public class MatrixMultiplication extends Benchmark {
          * @param b
          * @param c
          */
-        public static void mxmSequential(FloatMatrix a, FloatMatrix b, FloatMatrix c) {
+        public static void mxmSequential(FP16Matrix a, FP16Matrix b, FP16Matrix c) {
             for (int i = 0; i < a.M(); i++) {
                 for (int j = 0; j < b.N(); j++) {
                     float acc = 0;
@@ -141,7 +146,7 @@ public class MatrixMultiplication extends Benchmark {
             }
         }
 
-        public static void mxmParallelStreams(FloatMatrix a, FloatMatrix b, FloatMatrix c) {
+        public static void mxmParallelStreams(FP16Matrix a, FP16Matrix b, FP16Matrix c) {
             IntStream.range(0, a.M()).parallel().forEach(i -> IntStream.range(0, b.N()).parallel().forEach(j -> {
                 float acc = 0;
                 for (int k = 0; k < c.M(); k++) {
@@ -151,7 +156,7 @@ public class MatrixMultiplication extends Benchmark {
             }));
         }
 
-        public static void mxmParallelThreads(FloatMatrix a, FloatMatrix b, FloatMatrix c) throws InterruptedException {
+        public static void mxmParallelThreads(FP16Matrix a, FP16Matrix b, FP16Matrix c) throws InterruptedException {
 
             int maxProcessors = Runtime.getRuntime().availableProcessors();
             Range[] ranges = Utils.createRangesForCPU(a.M());
@@ -180,8 +185,8 @@ public class MatrixMultiplication extends Benchmark {
             }
         }
 
-        public static FloatMatrix transposeMatrix(FloatMatrix matrix) {
-            FloatMatrix matrixTranspose = new FloatMatrix(matrix.M(), matrix.N());
+        public static FP16Matrix transposeMatrix(FP16Matrix matrix) {
+            FP16Matrix matrixTranspose = new FP16Matrix(matrix.M(), matrix.N());
             for (int i = 0; i < matrix.M(); i++) {
                 for (int j = 0; j < matrix.N(); j++) {
                     matrixTranspose.set(i, j, matrix.get(j, i));
@@ -190,33 +195,13 @@ public class MatrixMultiplication extends Benchmark {
             return matrixTranspose;
         }
 
-        static final int FLOAT_BYTES = 4;
-        public static void mxmSequentialVectorized(FloatMatrix a, FloatMatrix b, FloatMatrix c) {
-            VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
-            for (int i = 0; i < a.M(); i++) {
-                for (int j = 0; j < a.N(); j++) {
-                    float acc = 0;
-                    for (int k = 0; k < c.M(); k += species.length()) {
-                        FloatVector vector1 = FloatVector.fromMemorySegment(species, a.segment, (i * a.M() + k) * FLOAT_BYTES, ByteOrder.nativeOrder());
-                        FloatVector vector2 = FloatVector.fromMemorySegment(species, b.segment, (j * b.N() + k) * FLOAT_BYTES, ByteOrder.nativeOrder());
-                        acc += vector1.mul(vector2).reduceLanes(VectorOperators.ADD);
-                    }
-                    c.set(i, j, acc);
-                }
-            }
+
+        public static void mxmSequentialVectorized(FP16Matrix a, FP16Matrix b, FP16Matrix c) {
+            throw new UnsupportedOperationException("Vector API FP16 Not Supported");
         }
 
-        public static void mxmParallelVectorized(FloatMatrix a, FloatMatrix b, FloatMatrix c) {
-            VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
-            IntStream.range(0, a.M()).parallel().forEach(i -> IntStream.range(0, b.N()).parallel().forEach(j -> {
-                float acc = 0;
-                for (int k = 0; k < c.M(); k += species.length()) {
-                    FloatVector vector1 = FloatVector.fromMemorySegment(species, a.segment, (i * a.M() + k) * FLOAT_BYTES, ByteOrder.nativeOrder());
-                    FloatVector vector2 = FloatVector.fromMemorySegment(species, b.segment, (j * b.N() + k) * FLOAT_BYTES, ByteOrder.nativeOrder());
-                    acc += vector1.mul(vector2).reduceLanes(VectorOperators.ADD);
-                }
-                c.set(i, j, acc);
-            }));
+        public static void mxmParallelVectorized(FP16Matrix a, FP16Matrix b, FP16Matrix c) {
+            throw new UnsupportedOperationException("Vector API FP16 Not Supported");
         }
 
         /**
@@ -226,39 +211,42 @@ public class MatrixMultiplication extends Benchmark {
          * @param c
          * @param size (num rows and num columns)
          */
-        private static void mxmTornadoVM(Matrix2DFloat a, Matrix2DFloat b, Matrix2DFloat c, final int size) {
+        private static void mxmTornadoVM(HalfFloatArray a, HalfFloatArray b, HalfFloatArray c, final int size) {
             for (@Parallel int i = 0; i < size; i++) {
                 for (@Parallel int j = 0; j < size; j++) {
-                    float sum = 0.0f;
+                    HalfFloat sum = new HalfFloat(0.0f);
                     for (int k = 0; k < size; k++) {
-                        sum += a.get(i, k) * b.get(k, j);
+                        HalfFloat f1 = a.get(i * size +  k);
+                        HalfFloat f2 = b.get(k * size +  j);
+                        HalfFloat result = HalfFloat.mult(f1, f2);
+                        sum = HalfFloat.add(sum, result);
                     }
-                    c.set(i, j, sum);
+                    c.set(i * size + j, sum);
                 }
             }
         }
 
-        public static Matrix2DFloat transformMatrixForTornadoVM(FloatMatrix a) {
+        public static HalfFloatArray transformMatrixForTornadoVM(FP16Matrix a) {
             final int m = a.M();
             final int n = a.N();
-            final Matrix2DFloat matrix2DFloat = new Matrix2DFloat(m, n);
+            final HalfFloatArray matrix = new HalfFloatArray(m * n);
             for (int i = 0; i < m; i++) {
                 for (int j = 0; j < n; j++) {
-                    matrix2DFloat.set(i, j, a.get(i, j));
+                    matrix.set(i * m +  j, new HalfFloat(a.get(i, j)));
                 }
             }
-            return matrix2DFloat;
+            return matrix;
         }
 
-        private static TaskGraph createTaskGraph(Matrix2DFloat a, Matrix2DFloat b, Matrix2DFloat c) {
+        private static TaskGraph createTaskGraph(HalfFloatArray a, HalfFloatArray b, HalfFloatArray c, int size) {
             TaskGraph taskGraph = new TaskGraph("benchmark");
             taskGraph.transferToDevice(DataTransferMode.FIRST_EXECUTION, a, b) //
-                    .task("mxm", Multiplication::mxmTornadoVM, a, b, c, a.getNumRows()) //
+                    .task("mxmfp16", Multiplication::mxmTornadoVM, a, b, c, size) //
                     .transferToHost(DataTransferMode.EVERY_EXECUTION, c);
             return taskGraph;
         }
 
-        private static boolean verify(FloatMatrix matrix, FloatMatrix referenceMatrix) {
+        private static boolean verify(FP16Matrix matrix, FP16Matrix referenceMatrix) {
             boolean check = true;
             for (int i = 0; i < matrix.M(); i++) {
                 for (int j = 0; j < matrix.N(); j++) {
@@ -275,7 +263,7 @@ public class MatrixMultiplication extends Benchmark {
             return check;
         }
 
-        private static void validate(int run, FloatMatrix matrix, FloatMatrix referenceMatrix) {
+        private static void validate(int run, FP16Matrix matrix, FP16Matrix referenceMatrix) {
             if (run == 0) {
                 System.out.println(" -- Result Correct? " + Multiplication.verify(matrix, referenceMatrix));
             } else {
@@ -283,12 +271,12 @@ public class MatrixMultiplication extends Benchmark {
             }
         }
 
-        private static boolean verify(Matrix2DFloat matrix, FloatMatrix referenceMatrix) {
+        private static boolean verify(HalfFloatArray matrix, FP16Matrix referenceMatrix, int m, int n) {
             boolean check = true;
-            for (int i = 0; i < matrix.getNumRows(); i++) {
-                for (int j = 0; j < matrix.getNumColumns(); j++) {
-                    if (Math.abs(matrix.get(i, j) - referenceMatrix.get(i, j)) > 0.1f) {
-                        System.out.println(matrix.get(i, j) + " vs " + referenceMatrix.get(i, j));
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < n; j++) {
+                    if (Math.abs(matrix.get(i * m + j).getFloat32() - referenceMatrix.get(i, j)) > 0.1f) {
+                        System.out.println(matrix.get(i * m + j) + " vs " + referenceMatrix.get(i, j));
                         check = false;
                         break;
                     }
@@ -300,9 +288,9 @@ public class MatrixMultiplication extends Benchmark {
             return check;
         }
 
-        private static void validate(int run, Matrix2DFloat matrix, FloatMatrix referenceMatrix) {
+        private static void validate(int run, HalfFloatArray matrix, FP16Matrix referenceMatrix, int size) {
             if (run == 0) {
-                System.out.println(" -- Result Correct? " + Multiplication.verify(matrix, referenceMatrix));
+                System.out.println(" -- Result Correct? " + Multiplication.verify(matrix, referenceMatrix, size, size));
             } else {
                 System.out.println();
             }
@@ -312,19 +300,19 @@ public class MatrixMultiplication extends Benchmark {
     @State(Scope.Thread)
     public static class JMHBenchmark {
 
-        FloatMatrix matrixA;
-        FloatMatrix matrixB;
+        FP16Matrix matrixA;
+        FP16Matrix matrixB;
 
         // Matrix for results
-        FloatMatrix matrixC;
-        FloatMatrix matrixD;
-        FloatMatrix matrixE;
-        FloatMatrix matrixF;
-        FloatMatrix matrixG;
+        FP16Matrix matrixC;
+        FP16Matrix matrixD;
+        FP16Matrix matrixE;
+        FP16Matrix matrixF;
+        FP16Matrix matrixG;
 
-        Matrix2DFloat tma;
-        Matrix2DFloat tmb;
-        Matrix2DFloat resultTornadoVM;
+        HalfFloatArray tma;
+        HalfFloatArray tmb;
+        HalfFloatArray resultTornadoVM;
         TaskGraph taskGraph;
         TornadoExecutionPlan executionPlan;
 
@@ -332,15 +320,15 @@ public class MatrixMultiplication extends Benchmark {
         public void doSetup() {
             // Using Panama Segments
             final int size = 1024;
-            matrixA = new FloatMatrix(size, size);
-            matrixB = new FloatMatrix(size, size);
+            matrixA = new FP16Matrix(size, size);
+            matrixB = new FP16Matrix(size, size);
 
             // Matrix for results
-            matrixC = new FloatMatrix(size, size);
-            matrixD = new FloatMatrix(size, size);
-            matrixE = new FloatMatrix(size, size);
-            matrixF = new FloatMatrix(size, size);
-            matrixG = new FloatMatrix(size, size);
+            matrixC = new FP16Matrix(size, size);
+            matrixD = new FP16Matrix(size, size);
+            matrixE = new FP16Matrix(size, size);
+            matrixF = new FP16Matrix(size, size);
+            matrixG = new FP16Matrix(size, size);
 
             matrixA.initRandom();
             matrixB.initRandom();
@@ -348,8 +336,8 @@ public class MatrixMultiplication extends Benchmark {
             // TornadoVM
             tma = Multiplication.transformMatrixForTornadoVM(matrixA);
             tmb = Multiplication.transformMatrixForTornadoVM(matrixB);
-            resultTornadoVM = new Matrix2DFloat(size, size);
-            taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM);
+            resultTornadoVM = new HalfFloatArray(size * size);
+            taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM, size);
             executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
         }
 
@@ -360,7 +348,7 @@ public class MatrixMultiplication extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void mxmSequential(JMHBenchmark state) {
-            MatrixMultiplication.Multiplication.mxmSequential(state.matrixA, state.matrixB, state.matrixC);
+            MatrixMultiplicationFP16.Multiplication.mxmSequential(state.matrixA, state.matrixB, state.matrixC);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -370,7 +358,7 @@ public class MatrixMultiplication extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void mxmParallelStreams(JMHBenchmark state) {
-            MatrixMultiplication.Multiplication.mxmParallelStreams(state.matrixA, state.matrixB, state.matrixD);
+            MatrixMultiplicationFP16.Multiplication.mxmParallelStreams(state.matrixA, state.matrixB, state.matrixD);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -380,7 +368,7 @@ public class MatrixMultiplication extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void mxmParallelThreads(JMHBenchmark state) throws InterruptedException {
-            MatrixMultiplication.Multiplication.mxmParallelThreads(state.matrixA, state.matrixB, state.matrixE);
+            MatrixMultiplicationFP16.Multiplication.mxmParallelThreads(state.matrixA, state.matrixB, state.matrixE);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -390,7 +378,7 @@ public class MatrixMultiplication extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void mxmSequentialVectorized(JMHBenchmark state) {
-            MatrixMultiplication.Multiplication.mxmSequentialVectorized(state.matrixA, state.matrixB, state.matrixF);
+            MatrixMultiplicationFP16.Multiplication.mxmSequentialVectorized(state.matrixA, state.matrixB, state.matrixF);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -400,7 +388,7 @@ public class MatrixMultiplication extends Benchmark {
         @OutputTimeUnit(TimeUnit.NANOSECONDS)
         @Fork(1)
         public void mxmParallelVectorized(JMHBenchmark state) {
-            MatrixMultiplication.Multiplication.mxmParallelVectorized(state.matrixA, state.matrixB, state.matrixG);
+            MatrixMultiplicationFP16.Multiplication.mxmParallelVectorized(state.matrixA, state.matrixB, state.matrixG);
         }
 
         @org.openjdk.jmh.annotations.Benchmark
@@ -415,14 +403,14 @@ public class MatrixMultiplication extends Benchmark {
     }
 
     @Override
-    int getSize() {
+    public int getSize() {
         return size;
     }
 
     @Override
-    void runWithJMH() throws RunnerException {
+    public void runWithJMH() throws RunnerException {
         org.openjdk.jmh.runner.options.Options opt = new OptionsBuilder() //
-                .include(MatrixMultiplication.class.getName() + ".*") //
+                .include(MatrixMultiplicationFP16.class.getName() + ".*") //
                 .mode(Mode.AverageTime) //
                 .timeUnit(TimeUnit.NANOSECONDS) //
                 .warmupTime(TimeValue.seconds(60)) //
@@ -435,18 +423,18 @@ public class MatrixMultiplication extends Benchmark {
     }
 
     @Override
-    void runTestAll(final int size, Option option) throws InterruptedException {
+    public void runTestAll(final int size, Option option) throws InterruptedException {
 
         // Using Panama Segments
-        FloatMatrix matrixA = new FloatMatrix(size, size);
-        FloatMatrix matrixB = new FloatMatrix(size, size);
+        FP16Matrix matrixA = new FP16Matrix(size, size);
+        FP16Matrix matrixB = new FP16Matrix(size, size);
 
         // Matrix for results
-        FloatMatrix outputReference = new FloatMatrix(size, size);
-        FloatMatrix matrixD = new FloatMatrix(size, size);
-        FloatMatrix matrixE = new FloatMatrix(size, size);
-        FloatMatrix matrixF = new FloatMatrix(size, size);
-        FloatMatrix matrixG = new FloatMatrix(size, size);
+        FP16Matrix outputReference = new FP16Matrix(size, size);
+        FP16Matrix matrixD = new FP16Matrix(size, size);
+        FP16Matrix matrixE = new FP16Matrix(size, size);
+        FP16Matrix matrixF = new FP16Matrix(size, size);
+        FP16Matrix matrixG = new FP16Matrix(size, size);
 
         matrixA.initRandom();
         matrixB.initRandom();
@@ -455,7 +443,6 @@ public class MatrixMultiplication extends Benchmark {
         ArrayList<ArrayList<Long>> timers = IntStream.range(0, 6) //
                 .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
                 .collect(Collectors.toCollection(ArrayList::new));
-
 
         // 1. Sequential
         for (int i = 0; i < Config.RUNS; i++) {
@@ -476,7 +463,6 @@ public class MatrixMultiplication extends Benchmark {
                 break;
             }
         }
-
 
         if (option == Option.ALL || option == Option.JAVA_ONLY) {
             // 2. Parallel Streams
@@ -512,49 +498,57 @@ public class MatrixMultiplication extends Benchmark {
             }
 
             // 4. Sequential Using the Vector API
-            FloatMatrix bTranspose = Multiplication.transposeMatrix(matrixB);
+            FP16Matrix bTranspose = Multiplication.transposeMatrix(matrixB);
             for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                Multiplication.mxmSequentialVectorized(matrixA, bTranspose, matrixF);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(3).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
+                try {
+                    long start = System.nanoTime();
+                    Multiplication.mxmSequentialVectorized(matrixA, bTranspose, matrixF);
+                    long end = System.nanoTime();
+                    long elapsedTime = (end - start);
+                    timers.get(3).add(elapsedTime);
+                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
-                double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                String formatGPUFGlops = String.format("%.2f", gigaFlops);
+                    double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
+                    String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
-                System.out.print("Elapsed time Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                Multiplication.validate(i, matrixF, outputReference);
+                    System.out.print("Elapsed time Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
+                    Multiplication.validate(i, matrixF, outputReference);
+                } catch (UnsupportedOperationException e) {
+                    timers.get(3).add(-1L);
+                }
             }
 
             // 5. Parallel Streams using the Vector API
             for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                Multiplication.mxmParallelVectorized(matrixA, bTranspose, matrixG);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(4).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
+                try {
+                    long start = System.nanoTime();
+                    Multiplication.mxmParallelVectorized(matrixA, bTranspose, matrixG);
+                    long end = System.nanoTime();
+                    long elapsedTime = (end - start);
+                    timers.get(4).add(elapsedTime);
+                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
 
-                double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                String formatGPUFGlops = String.format("%.2f", gigaFlops);
+                    double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
+                    String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
-                System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                Multiplication.validate(i, matrixG, outputReference);
+                    System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
+                    Multiplication.validate(i, matrixG, outputReference);
+                } catch (UnsupportedOperationException e) {
+                    timers.get(4).add(-1L);
+                }
             }
         }
 
         if (option == Option.ALL || option == Option.TORNADO_ONLY) {
             // TornadoVM
-            Matrix2DFloat tma = Multiplication.transformMatrixForTornadoVM(matrixA);
-            Matrix2DFloat tmb = Multiplication.transformMatrixForTornadoVM(matrixB);
-            Matrix2DFloat resultTornadoVM = new Matrix2DFloat(size, size);
-            TaskGraph taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM);
+            HalfFloatArray tma = Multiplication.transformMatrixForTornadoVM(matrixA);
+            HalfFloatArray tmb = Multiplication.transformMatrixForTornadoVM(matrixB);
+            HalfFloatArray resultTornadoVM = new HalfFloatArray(size * size);
+            TaskGraph taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM, size);
 
             try(TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
                 TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
-                WorkerGrid workerGrid = new WorkerGrid2D(tma.getNumRows(), tma.getNumColumns());
+                WorkerGrid workerGrid = new WorkerGrid2D(size, size);
                 workerGrid.setLocalWork(8, 8, 1);
                 GridScheduler gridScheduler = new GridScheduler("benchmark.mxm", workerGrid);
                 executionPlan
@@ -574,7 +568,7 @@ public class MatrixMultiplication extends Benchmark {
                     String formatGPUFGlops = String.format("%.2f", gigaFlops);
 
                     System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                    Multiplication.validate(i, resultTornadoVM, outputReference);
+                    Multiplication.validate(i, resultTornadoVM, outputReference, size);
                 }
             } catch (TornadoExecutionPlanException e) {
                 throw new RuntimeException(e);
@@ -586,17 +580,17 @@ public class MatrixMultiplication extends Benchmark {
     }
 
     @Override
-    String getName() {
-        return "matrix-multiplication";
+    public String getName() {
+        return "matrix-multiplication-fp16";
     }
 
     @Override
-    String printSize() {
+    public String printSize() {
         return getSize() + "x" + getSize();
     }
 
     public static void main(String[] args) throws InterruptedException {
-        MatrixMultiplication benchmark = new MatrixMultiplication(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMul).size());
+        MatrixMultiplicationFP16 benchmark = new MatrixMultiplicationFP16(Catalog.DEFAULT.get(Catalog.BenchmarkID.MatrixMul).size());
         benchmark.run(args);
     }
 }

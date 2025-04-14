@@ -160,8 +160,9 @@ public class Montecarlo extends BenchmarkDriver {
     @Override
     public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
-        for (int j = 0; j < iterations; j+= species.length()) {
-
+        final int loopBound = species.loopBound(iterations);
+        int j = 0;
+        for (;j < loopBound; j+= species.length()) {
             // Create vector x and vector y
             float[] x = new float[species.length()];
             float[] y = new float[species.length()];
@@ -184,14 +185,30 @@ public class Montecarlo extends BenchmarkDriver {
             FloatVector vY = FloatVector.fromArray(species, y, 0);
             FloatVector mulX = vX.mul(vX);
             FloatVector mulY = vY.mul(vY);
-            float[] dist = mulX.add(mulY).sqrt().toArray();
-
-            for (float v : dist) {
-                if (v <= 1.0f) {
-                    output.set(j, 1.0f);
+            FloatVector result =  mulX.add(mulY).sqrt();
+            for (int i = 0; i < result.length(); i++) {
+                float dist = result.lane(i);
+                if (dist <= 1.0f) {
+                    output.set(j + i, 1.0f);
                 } else {
-                    output.set(j, 0.0f);
+                    output.set(j + i, 0.0f);
                 }
+            }
+        }
+
+        for (;j < iterations; j++) {
+            long seed = j;
+            seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+            seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+            float x = (seed & 0x0FFFFFFF) / 268435455f;
+            seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+            seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+            float y = (seed & 0x0FFFFFFF) / 268435455f;
+            float dist = (float) Math.sqrt(x * x + y * y);
+            if (dist <= 1.0f) {
+                outputRef.set(j, 1.0f);
+            } else {
+                outputRef.set(j, 0.0f);
             }
         }
     }

@@ -82,7 +82,7 @@ public class Blackscholes extends BenchmarkDriver {
 
     @Override
     public void computeSequential() {
-        for (@Parallel int idx = 0; idx < callResultRef.getSize(); idx++) {
+        for (int idx = 0; idx < callResultRef.getSize(); idx++) {
             float rand = input.get(idx);
             final float S_LOWER_LIMIT = 10.0f;
             final float S_UPPER_LIMIT = 100.0f;
@@ -177,9 +177,31 @@ public class Blackscholes extends BenchmarkDriver {
         }
     }
 
+    final float S_LOWER_LIMIT = 10.0f;
+    final float S_UPPER_LIMIT = 100.0f;
+    final float K_LOWER_LIMIT = 10.0f;
+    final float K_UPPER_LIMIT = 100.0f;
+    final float T_LOWER_LIMIT = 1.0f;
+    final float T_UPPER_LIMIT = 10.0f;
+    final float R_LOWER_LIMIT = 0.01f;
+    final float R_UPPER_LIMIT = 0.05f;
+    final float SIGMA_LOWER_LIMIT = 0.01f;
+    final float SIGMA_UPPER_LIMIT = 0.10f;
     @Override
     public void computeWithParallelVectorAPI() {
-        throw new RuntimeException("Not implemented yet");
+        for (int idx = 0; idx < callResultRef.getSize(); idx++) {
+            float val = input.get(idx);
+            final float S = S_LOWER_LIMIT * val + S_UPPER_LIMIT * (1.0f - val);
+            final float K = K_LOWER_LIMIT * val + K_UPPER_LIMIT * (1.0f - val);
+            final float T = T_LOWER_LIMIT * val + T_UPPER_LIMIT * (1.0f - val);
+            final float r = R_LOWER_LIMIT * val + R_UPPER_LIMIT * (1.0f - val);
+            final float v = SIGMA_LOWER_LIMIT * val + SIGMA_UPPER_LIMIT * (1.0f - val);
+
+            float d1 = (TornadoMath.log(S / K) + ((r + (v * v / 2)) * T)) / v * TornadoMath.sqrt(T);
+            float d2 = d1 - (v * TornadoMath.sqrt(T));
+            callResultRef.set(idx, S * cnd(d1) - K * TornadoMath.exp(T * (-1) * r) * cnd(d2));
+            putResultRef.set(idx, K * TornadoMath.exp(T * -r) * cnd(-d2) - S * cnd(-d1));
+        }
     }
 
     private static void blackScholesKernel(FloatArray input, FloatArray callResult, FloatArray putResult) {

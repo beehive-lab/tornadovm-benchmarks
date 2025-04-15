@@ -18,7 +18,7 @@ package tornadovm.benchmarks.utils;
 
 public class Config {
 
-    public static int RUNS = 2;
+    public static int RUNS = 100;
 
     public static float DELTA = 0.1f;
 

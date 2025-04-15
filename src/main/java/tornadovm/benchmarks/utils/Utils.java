@@ -16,19 +16,11 @@
  */
 package tornadovm.benchmarks.utils;
 
-import uk.ac.manchester.tornado.api.TornadoBackend;
-import uk.ac.manchester.tornado.api.TornadoDeviceMap;
-import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
-import uk.ac.manchester.tornado.api.common.TornadoDevice;
-import uk.ac.manchester.tornado.api.enums.TornadoDeviceType;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Stream;
 
 public class Utils {
 
@@ -91,44 +83,5 @@ public class Utils {
         } catch (IOException e) {
             System.err.println("An error occurred: " + e.getMessage());
         }
-    }
-
-    public static TornadoDevice getDeviceByType(TornadoDeviceType deviceType) {
-        TornadoDeviceMap deviceMap = TornadoExecutionPlan.getTornadoDeviceMap();
-        List<TornadoBackend> backendStream = deviceMap
-                .getBackendsWithPredicate(backend -> backend
-                        .getAllDevices()
-                        .stream()
-                        .anyMatch(device -> device.getDeviceType() == deviceType));
-
-        if (backendStream.isEmpty()) {
-            Stream<TornadoDevice> tornadoDeviceStream = backendStream.getFirst()
-                    .getAllDevices()
-                    .stream()
-                    .filter(device -> device.getDeviceType() == deviceType);
-            // Return first device that meets the criteria
-            return tornadoDeviceStream.findFirst().get();
-        } else {
-            return null;
-        }
-    }
-
-    public static TornadoDevice getDeviceByName(String deviceName) {
-        TornadoDeviceMap deviceMap = TornadoExecutionPlan.getTornadoDeviceMap();
-        List<TornadoBackend> backendStream = deviceMap
-                .getBackendsWithPredicate(backend -> backend
-                        .getAllDevices()
-                        .stream()
-                        .anyMatch(device -> device.getPhysicalDevice().getDeviceName().toLowerCase().contains(deviceName.toLowerCase())));
-
-        if (!backendStream.isEmpty()) {
-            Stream<TornadoDevice> tornadoDeviceStream = backendStream.getFirst()
-                    .getAllDevices()
-                    .stream()
-                    .filter(device -> device.getPhysicalDevice().getDeviceName().toLowerCase().contains(deviceName.toLowerCase()));
-            // Return first device that meets the criteria
-            return tornadoDeviceStream.findFirst().get();
-        }
-        return null;
     }
 }

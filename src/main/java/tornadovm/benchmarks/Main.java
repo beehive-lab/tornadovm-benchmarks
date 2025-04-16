@@ -81,21 +81,21 @@ public class Main {
             System.out.println(Config.Colours.GREEN + "[INFO] Running all benchmarks..." + Config.Colours.RESET);
 
             String[] benchmarkNames = new String[] {
-                    "mxm",
-                    "dft",
-                    "montecarlo",
-                    "mandelbrot",
-                    "mxv",
-                    "mt",
-                    "blackscholes",
-                    "blurfilter",
-                    "saxpy",
-                    "nbody",
-                    "juliaset",
-                    "rmsnorm",
-                    "mxmfp16",
-                    "softmax",
-                    "silu"
+                    "mxm", //
+                    "dft", //
+                    "montecarlo", //
+                    "mandelbrot", //
+                    "mxv", //
+                    "mt", //
+                    "blackscholes", //
+                    "blurfilter", //
+                    "saxpy",//
+                    "nbody",//
+                    "juliaset",//
+                    "rmsnorm",//
+                    "mxmfp16",//
+                    "softmax",//
+                    "silu"//
             };
 
             for (String benchmarkName : benchmarkNames) {

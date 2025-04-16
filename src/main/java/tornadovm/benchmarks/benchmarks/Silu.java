@@ -53,27 +53,27 @@ public class Silu extends BenchmarkDriver {
 
     private final int size;
     FloatArray shb;
+    FloatArray shbRef;
     FloatArray shb2;
-    FloatArray shb2Ref;
-    FloatArray shb2Init;
+    FloatArray shbInit;
 
     public Silu(int size) {
         this.size = size;
         shb = new FloatArray(size);
         shb2 = new FloatArray(size);
-        shb2Ref = new FloatArray(size);
-        shb2Init = new FloatArray(size);
+        shbRef = new FloatArray(size);
+        shbInit = new FloatArray(size);
         Random r = new Random();
         for (int i = 0; i < size; i++) {
-            shb.set(i, r.nextFloat());
-            shb2Init.set(i, r.nextFloat());
-            shb2Ref.set(i, shb2Init.get(i));
+            shb2.set(i, r.nextFloat());
+            shbInit.set(i, r.nextFloat());
+            shbRef.set(i, shbInit.get(i));
         }
         init();
     }
 
     private void init() {
-        IntStream.range(0, size).forEach(i -> shb2.set(i, shb2Init.get(i)));
+        IntStream.range(0, size).forEach(i -> shb.set(i, shbInit.get(i)));
     }
 
     @Override
@@ -81,8 +81,8 @@ public class Silu extends BenchmarkDriver {
         for (int i = 0; i < size; i++) {
             float val = shb.get(i);
             val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
-            val *= shb2Ref.get(i);
-            shb2Ref.set(i, val);
+            val *= shb2.get(i);
+            shbRef.set(i, val);
         }
     }
 
@@ -92,7 +92,7 @@ public class Silu extends BenchmarkDriver {
             float val = shb.get(i);
             val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
             val *= shb2.get(i);
-            shb2.set(i, val);
+            shb.set(i, val);
         });
     }
 
@@ -108,7 +108,7 @@ public class Silu extends BenchmarkDriver {
                     float val = shb.get(j);
                     val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
                     val *= shb2.get(j);
-                    shb2.set(j, val);
+                    shb.set(j, val);
                 }
             });
         });
@@ -141,13 +141,13 @@ public class Silu extends BenchmarkDriver {
             Vector<Float> divB = one.add(resultExp);
             Vector<Float> valDiv = one.div(divB);
             valDiv = valDiv.mul(vB);
-            valDiv.intoMemorySegment(shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+            valDiv.intoMemorySegment(shb.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
         }
         for (; i < size; i++) {
             float val = shb.get(i);
             val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
             val *= shb2.get(i);
-            shb2.set(i, val);
+            shb.set(i, val);
         }
     }
 
@@ -156,7 +156,7 @@ public class Silu extends BenchmarkDriver {
             float val = shb.get(i);
             val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
             val *= shb2.get(i);
-            shb2.set(i, val);
+            shb.set(i, val);
         }
     }
 
@@ -164,9 +164,9 @@ public class Silu extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan() {
         init();
         TaskGraph taskGraph = new TaskGraph("benchmark")
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, shb)
+                .transferToDevice(DataTransferMode.FIRST_EXECUTION, shb2)
                 .task("silu", Silu::computeWithTornadoVM, size, shb, shb2)
-                .transferToHost(DataTransferMode.EVERY_EXECUTION, shb2);
+                .transferToHost(DataTransferMode.EVERY_EXECUTION, shb);
         return new TornadoExecutionPlan(taskGraph.snapshot());
     }
 
@@ -187,7 +187,7 @@ public class Silu extends BenchmarkDriver {
     @Override
     public void validate(int run) {
         if (run == 0) {
-            System.out.println(" -- Result Correct? " + validate(shb2Ref, shb2));
+            System.out.println(" -- Result Correct? " + validate(shbRef, shb));
         } else {
             System.out.println();
         }

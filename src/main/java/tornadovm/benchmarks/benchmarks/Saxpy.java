@@ -78,7 +78,7 @@ public class Saxpy extends BenchmarkDriver {
 
     @Override
     public void computeWithJavaStreams() {
-        IntStream.range(0, size).forEach(i -> {
+        IntStream.range(0, size).parallel().forEach(i -> {
             output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         });
     }

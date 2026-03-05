@@ -11,30 +11,32 @@ on certain accelerators. The suite aims to showcase code diversification, with a
 LLM, physics, and math simulation workloads.
 
 
-## How to build?
+## Install the TornadoVM SDK on Linux or macOS
 
+Ensure that your JAVA_HOME points to a supported JDK before using the SDK. Download an SDK package matching your OS, architecture, and accelerator backend (opencl, ptx).
+TornadoVM is distributed through our [**official website**](https://www.tornadovm.org/downloads) and **SDKMAN!**. Install a version that matches your OS, architecture, and accelerator backend.
 
+All TornadoVM SDKs are available on the [SDKMAN! TornadoVM page](https://sdkman.io/sdks/tornadovm/).
+
+### SDKMAN! Installation (Recommended)
+
+#### Install SDKMAN! if not installed already
 ```bash
-./build.sh
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk version
+```
+#### Install TornadoVM via SDKMAN!
+```bash
+sdk install tornadovm
 ```
 
-Then install TornadoVM in a separated directory:
-
+## Build the TornadoVM Benchmark Suite
 ```bash
-git clone https://github.com/beehive-lab/TornadoVM
-cd tornadovm 
-./bin/tornadovm-installer --backend=opencl --jdk jdk21 
-cp setvars.sh .. 
-cd ..
+mvn -Dstyle.color=always clean install
 ```
 
-## How to run? 
-
-Setup the environment:
-
-```bash
-source setvars.sh
-```
+## How to run?
 
 ### Run Individual benchamrk:
 
@@ -58,13 +60,13 @@ source setvars.sh
 ./run.sh mt
 ```
 
-## Run all:
+### Run all:
 
 ```bash
 ./run.sh 
 ```
 
-## Run with JMH 
+### Run with JMH 
 
 ```bash
 ./run.sh <benchmark> jmh
@@ -76,7 +78,7 @@ For example, to run `mxm` with `jmh`:
 ./run.sh mxm jmh
 ```
 
-## How to Change Device for an Specific Benchmark? 
+### How to Change Device for an Specific Benchmark? 
 
 For example, device `0:2` for the benchmark `mxv`:
 

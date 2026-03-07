@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +45,12 @@ import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -121,6 +126,34 @@ public class Silu extends BenchmarkDriver {
         }
     }
 
+    /**
+     * Reuses the shared thread pool supplied by {@link BenchmarkDriver} to avoid
+     * per-iteration thread-creation overhead in the timed region.
+     */
+    @Override
+    protected void computeWithJavaThreadsReusing(ExecutorService executor) throws InterruptedException {
+        Range[] ranges = Utils.createRangesForCPU(shb.getSize());
+        List<Future<?>> futures = new ArrayList<>(ranges.length);
+        for (int t = 0; t < ranges.length; t++) {
+            final int idx = t;
+            futures.add(executor.submit(() -> {
+                for (int j = ranges[idx].min(); j < ranges[idx].max(); j++) {
+                    float val = shb.get(j);
+                    val *= (1.0f / (1.0f + TornadoMath.exp(-val)));
+                    val *= shb2.get(j);
+                    shb.set(j, val);
+                }
+            }));
+        }
+        for (Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     @Override
     public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
@@ -130,17 +163,21 @@ public class Silu extends BenchmarkDriver {
         for (; i < loopBound; i += species.length()) {
             FloatVector vA = FloatVector.fromMemorySegment(species, shb.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
             FloatVector vB = FloatVector.fromMemorySegment(species, shb2.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-            FloatVector mVA = vA.mul(-1.0f);
-
-            // Compute exp(x) using the Taylor Approximation: exp(x) ~= 1 + x + x^2/2!
+            // 4th-order Taylor approximation for exp(-vA): 1 - vA + vA²/2! - vA³/3! + vA⁴/4!
+            FloatVector vA2 = vA.mul(vA);
+            FloatVector vA3 = vA2.mul(vA);
+            FloatVector vA4 = vA3.mul(vA);
             Vector<Float> one = FloatVector.broadcast(species, 1.0f);
-            Vector<Float> mul = vA.mul(vA);
-            Vector<Float> half = FloatVector.broadcast(species, 0.5f);
-            Vector<Float> resultExp =  one.add(mVA).add(mul.mul(half));
+            Vector<Float> resultExp = one
+                    .sub(vA)
+                    .add(vA2.mul(0.5f))
+                    .sub(vA3.mul(1.0f / 6.0f))
+                    .add(vA4.mul(1.0f / 24.0f));
 
+            // silu: vA * sigmoid(vA) * vB  where sigmoid(x) = 1 / (1 + exp(-x))
             Vector<Float> divB = one.add(resultExp);
             Vector<Float> valDiv = one.div(divB);
-            valDiv = valDiv.mul(vB);
+            valDiv = valDiv.mul(vA).mul(vB);
             valDiv.intoMemorySegment(shb.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
         }
         for (; i < size; i++) {
@@ -165,6 +202,7 @@ public class Silu extends BenchmarkDriver {
         init();
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.FIRST_EXECUTION, shb2)
+                .transferToDevice(DataTransferMode.EVERY_EXECUTION, shb)
                 .task("silu", Silu::computeWithTornadoVM, size, shb, shb2)
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, shb);
         return new TornadoExecutionPlan(taskGraph.snapshot());
@@ -173,6 +211,11 @@ public class Silu extends BenchmarkDriver {
     @Override
     public void resetOutputs() {
         init();
+    }
+
+    /** Package-private hook for unit tests: true iff the last parallel result matches the sequential reference. */
+    boolean isResultCorrect() {
+        return validate(shbRef, shb);
     }
 
     private boolean validate(FloatArray outputRef, FloatArray output) {

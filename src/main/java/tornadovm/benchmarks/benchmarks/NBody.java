@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,6 +41,11 @@ import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -111,8 +116,8 @@ public class NBody extends BenchmarkDriver {
                 }
             }
             for (int k = 0; k < 3; k++) {
-                pos.set(body + k, pos.get(body + k) + pos.get(body + k) * delT + 0.5f * acc[k] * delT * delT);
-                vel.set(body + k, pos.get(body + k) + acc[k] * delT);
+                posRef.set(body + k, pos.get(body + k) + pos.get(body + k) * delT + 0.5f * acc[k] * delT * delT);
+                velRef.set(body + k, posRef.get(body + k) + acc[k] * delT);
             }
         }
     }
@@ -166,22 +171,22 @@ public class NBody extends BenchmarkDriver {
 
                         float distSqr = 0.0f;
                         for (int k = 0; k < 3; k++) {
-                            r[k] = posRef.get(index + k) - posRef.get(body + k);
+                            r[k] = pos.get(index + k) - pos.get(body + k);
                             distSqr += r[k] * r[k];
                         }
 
                         float invDist = 1.0f / TornadoMath.sqrt(distSqr + espSqr);
 
                         float invDistCube = invDist * invDist * invDist;
-                        float s = posRef.get(index + 3) * invDistCube;
+                        float s = pos.get(index + 3) * invDistCube;
 
                         for (int k = 0; k < 3; k++) {
                             acc[k] += s * r[k];
                         }
                     }
                     for (int k = 0; k < 3; k++) {
-                        posRef.set(body + k, posRef.get(body + k) + posRef.get(body + k) * delT + 0.5f * acc[k] * delT * delT);
-                        velRef.set(body + k, posRef.get(body + k) + acc[k] * delT);
+                        pos.set(body + k, pos.get(body + k) + pos.get(body + k) * delT + 0.5f * acc[k] * delT * delT);
+                        vel.set(body + k, pos.get(body + k) + acc[k] * delT);
                     }
                 }
             });
@@ -191,6 +196,54 @@ public class NBody extends BenchmarkDriver {
         }
         for (Thread thread : threads) {
             thread.join();
+        }
+    }
+
+    /**
+     * Reuses the shared thread pool supplied by {@link BenchmarkDriver} to avoid
+     * per-iteration thread-creation overhead in the timed region.
+     */
+    @Override
+    protected void computeWithJavaThreadsReusing(ExecutorService executor) throws InterruptedException {
+        Range[] ranges = Utils.createRangesForCPU(numBodies);
+        List<Future<?>> futures = new ArrayList<>(ranges.length);
+        for (int t = 0; t < ranges.length; t++) {
+            final int threadIndex = t;
+            futures.add(executor.submit(() -> {
+                for (int bodyID = ranges[threadIndex].min(); bodyID < ranges[threadIndex].max(); bodyID++) {
+                    int body = 4 * bodyID;
+                    float[] acc = new float[]{0.0f, 0.0f, 0.0f};
+                    for (int j = 0; j < numBodies; j++) {
+                        float[] r = new float[3];
+                        int index = 4 * j;
+
+                        float distSqr = 0.0f;
+                        for (int k = 0; k < 3; k++) {
+                            r[k] = pos.get(index + k) - pos.get(body + k);
+                            distSqr += r[k] * r[k];
+                        }
+
+                        float invDist = 1.0f / TornadoMath.sqrt(distSqr + espSqr);
+                        float invDistCube = invDist * invDist * invDist;
+                        float s = pos.get(index + 3) * invDistCube;
+
+                        for (int k = 0; k < 3; k++) {
+                            acc[k] += s * r[k];
+                        }
+                    }
+                    for (int k = 0; k < 3; k++) {
+                        pos.set(body + k, pos.get(body + k) + pos.get(body + k) * delT + 0.5f * acc[k] * delT * delT);
+                        vel.set(body + k, pos.get(body + k) + acc[k] * delT);
+                    }
+                }
+            }));
+        }
+        for (Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -240,10 +293,16 @@ public class NBody extends BenchmarkDriver {
 
     @Override
     public void resetOutputs() {
-        // This application is iterative, every time we run we obtain
-        // a new position and a new velocity. To compare, we set
-        // the initial position and velocity.
-        init();
+        // Restore only the working arrays (pos/vel) to their initial state so every
+        // iteration starts identically. posRef/velRef are NOT reset here — they hold
+        // the sequential (Jacobi) reference written by computeSequential().
+        IntStream.range(0, auxPositionRandom.getSize()).forEach(i -> pos.set(i, auxPositionRandom.get(i)));
+        IntStream.range(0, auxVelocityZero.getSize()).forEach(i -> vel.set(i, auxVelocityZero.get(i)));
+    }
+
+    /** Package-private hook for unit tests: true iff the last parallel result matches the sequential reference. */
+    boolean isResultCorrect() {
+        return validate(numBodies, pos, vel, posRef, velRef);
     }
 
     private boolean validate(int numBodies, FloatArray pos, FloatArray vel, FloatArray posRef, FloatArray velRef) {

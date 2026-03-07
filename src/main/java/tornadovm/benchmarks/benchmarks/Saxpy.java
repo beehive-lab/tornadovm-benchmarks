@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +43,12 @@ import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -102,6 +107,31 @@ public class Saxpy extends BenchmarkDriver {
         }
         for (Thread t : threads) {
             t.join();
+        }
+    }
+
+    /**
+     * Reuses the shared thread pool supplied by {@link BenchmarkDriver} to avoid
+     * per-iteration thread-creation overhead in the timed region.
+     */
+    @Override
+    protected void computeWithJavaThreadsReusing(ExecutorService executor) throws InterruptedException {
+        Range[] ranges = Utils.createRangesForCPU(output.getSize());
+        List<Future<?>> futures = new ArrayList<>(ranges.length);
+        for (int t = 0; t < ranges.length; t++) {
+            final int idx = t;
+            futures.add(executor.submit(() -> {
+                for (int j = ranges[idx].min(); j < ranges[idx].max(); j++) {
+                    output.set(j, alpha * arrayA.get(j) + arrayB.get(j));
+                }
+            }));
+        }
+        for (Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

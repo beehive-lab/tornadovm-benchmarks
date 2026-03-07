@@ -36,9 +36,14 @@ sdk install tornadovm
 mvn -Dstyle.color=always clean install
 ```
 
-## How to run?
+## Run the functionality tests of the TornadoVM Benchmark Suite
+```bash
+mvn test
+```
 
-### Run Individual benchamrk:
+## How to execute the TornadoVM Benchmark Suite?
+
+### Run an individual benchmark:
 
 ```bash
 # Matrix Multiplication
@@ -60,7 +65,7 @@ mvn -Dstyle.color=always clean install
 ./run.sh mt
 ```
 
-### Run all:
+### Run all benchmarks:
 
 ```bash
 ./run.sh 
@@ -85,4 +90,12 @@ For example, device `0:2` for the benchmark `mxv`:
 ```bash
 tornado --printKernel --jvm="-Dtornado.device.memory=2GB -Dbenchmark.mxv.device=0:2" -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.Main mxv
 ```
-    
+
+## Acknowledgments
+
+This work has been supported by the following EU & UKRI grants (most recent first):
+
+- EU Horizon Europe & UKRI [AERO 101092850](https://aero-project.eu/).
+- EU Horizon Europe & UKRI [P2CODE 101093069](https://p2code-project.eu/).
+- EU Horizon Europe & UKRI [ENCRYPT 101070670](https://encrypt-project.eu).
+- EU Horizon Europe & UKRI [TANGO 101070052](https://tango-project.eu).

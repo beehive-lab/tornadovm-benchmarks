@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,25 @@ package tornadovm.benchmarks.utils;
 
 public class Config {
 
-    public static int RUNS = 100;
+    public static int RUNS = Integer.getInteger("benchmark.runs", 100);
+
+    /**
+     * Number of warm-up iterations executed before any timed measurement.
+     * These runs allow the JIT compiler, thread pools, and GPU runtime (OpenCL/CUDA)
+     * to reach steady state. They are never included in the performance table.
+     * Override with {@code -Dbenchmark.warmup=N}.
+     */
+    public static int WARMUP_RUNS = Integer.getInteger("benchmark.warmup", 20);
 
     public static float DELTA = 0.1f;
 
     public static boolean DEBUG = false;
+
+    /**
+     * When true, print the elapsed time for every individual measured iteration.
+     * When false (default), only the per-backend summary line is printed.
+     */
+    public static boolean VERBOSE = false;
 
     public static String HEADER = "sequential,streams,threads,sequentialVectorAPI,parallelVectorAPI,TornadoVM\n";
 

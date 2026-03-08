@@ -312,7 +312,10 @@ public abstract class BenchmarkDriver extends Benchmark {
         // overhead for a pre-compiled, pre-allocated plan.
         if (option == Option.ALL || option == Option.TORNADO_ONLY) {
             try (TornadoExecutionPlan executionPlan = buildExecutionPlan()) {
-                TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
+                String deviceProp = System.getProperty("benchmark.device", "0:0");
+                String[] parts = deviceProp.split(":");
+                TornadoDevice device = TornadoExecutionPlan.getDevice(
+                        Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
                 executionPlan.withDevice(device);
 
                 timers.add(new ArrayList<>());

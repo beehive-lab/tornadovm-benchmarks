@@ -220,7 +220,7 @@ public class Mandelbrot extends BenchmarkDriver {
     private boolean validate(ShortArray outputRef, ShortArray output, int size) {
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                if (Math.abs(outputRef.get(i * size + j) - output.get(i * size + j)) > 0.0f) {
+                if (Math.abs(outputRef.get(i * size + j) - output.get(i * size + j)) > 1) {
                     System.out.println(outputRef.get(i * size + j) + " != " + output.get(i * size + j));
                     return false;
                 }

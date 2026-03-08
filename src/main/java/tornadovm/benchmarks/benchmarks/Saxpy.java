@@ -138,12 +138,16 @@ public class Saxpy extends BenchmarkDriver {
     @Override
     public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
-        final long FLOAT_BYES = 4;
-        for (int i = 0; i < size; i += species.length()) {
-            FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-            FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-            FloatVector add = a.mul(alpha).add(b);
-            add.intoMemorySegment(output.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+        final long FLOAT_BYTES = 4;
+        int i = 0;
+        int loopBound = species.loopBound(size);
+        for (; i < loopBound; i += species.length()) {
+            FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            a.mul(alpha).add(b).intoMemorySegment(output.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+        }
+        for (; i < size; i++) {
+            output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         }
     }
 

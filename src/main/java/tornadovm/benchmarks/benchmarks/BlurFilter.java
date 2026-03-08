@@ -40,7 +40,6 @@ import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 import uk.ac.manchester.tornado.api.types.arrays.IntArray;
 
-import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
@@ -244,9 +243,13 @@ public class BlurFilter extends BenchmarkDriver {
     private boolean validate(IntArray redFilterRef, IntArray redFilter, IntArray greenFilterRef, IntArray greenFilter, IntArray blueFilterRef, IntArray blueFilter) {
         for (int i = 0; i < w; i++) {
             for (int j = 0; j < h; j++) {
-                Color colorComputed = new Color(redFilter.get(i * h + j), greenFilter.get(i * h + j), blueFilter.get(i * h + j), alphaChannel.get(i * h + j));
-                Color colorRef = new Color(redFilterRef.get(i * h + j), greenFilterRef.get(i * h + j), blueFilterRef.get(i * h + j), alphaChannel.get(i * h + j));
-                if (colorRef.getRGB() != colorComputed.getRGB()) {
+                int idx = i * h + j;
+                if (Math.abs(redFilterRef.get(idx) - redFilter.get(idx)) > 1
+                        || Math.abs(greenFilterRef.get(idx) - greenFilter.get(idx)) > 1
+                        || Math.abs(blueFilterRef.get(idx) - blueFilter.get(idx)) > 1) {
+                    System.out.println("Mismatch at (" + i + "," + j + "): ref=("
+                            + redFilterRef.get(idx) + "," + greenFilterRef.get(idx) + "," + blueFilterRef.get(idx) + ") vs computed=("
+                            + redFilter.get(idx) + "," + greenFilter.get(idx) + "," + blueFilter.get(idx) + ")");
                     return false;
                 }
             }

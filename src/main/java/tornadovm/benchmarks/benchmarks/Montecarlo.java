@@ -209,9 +209,9 @@ public class Montecarlo extends BenchmarkDriver {
             float y = (seed & 0x0FFFFFFF) / 268435455f;
             float dist = (float) Math.sqrt(x * x + y * y);
             if (dist <= 1.0f) {
-                outputRef.set(j, 1.0f);
+                output.set(j, 1.0f);
             } else {
-                outputRef.set(j, 0.0f);
+                output.set(j, 0.0f);
             }
         }
     }

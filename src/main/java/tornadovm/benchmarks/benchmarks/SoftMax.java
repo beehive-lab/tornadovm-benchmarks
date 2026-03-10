@@ -93,7 +93,11 @@ public class SoftMax extends BenchmarkDriver {
     }
 
     private void setInit() {
-        IntStream.range(0, size).forEach(i -> x.set(i, xInit.get(i)));
+        IntStream.range(0, size).forEach(i -> {
+            x.set(i, xInit.get(i));
+            xRef.set(i, xInit.get(i));
+            xStreams[i] = xInit.get(i);
+        });
     }
 
     @Override
@@ -130,7 +134,7 @@ public class SoftMax extends BenchmarkDriver {
         // exp and sum
         IntStream.range(0, size)
                 .parallel()
-                .forEach(i -> xStreams[i] = TornadoMath.exp(xRef.get(i) - max_val));
+                .forEach(i -> xStreams[i] = TornadoMath.exp(xStreams[i] - max_val));
 
         final float sum = Arrays.stream(xStreams).reduce(0.0f, Float::sum);
         // normalization
@@ -231,42 +235,36 @@ public class SoftMax extends BenchmarkDriver {
         final int loopBound = species.loopBound(size);
         final long FLOAT_BYTES = 4;
         int i = 0;
-        float maxValue = 0.0f;
+
+        // Step 1: Find max (vectorized)
+        float maxValue = Float.NEGATIVE_INFINITY;
         for (; i < loopBound; i += species.length()) {
             FloatVector vA = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            maxValue = vA.mul(vA).reduceLanes(VectorOperators.MAX);
+            float blockMax = vA.reduceLanes(VectorOperators.MAX);
+            if (blockMax > maxValue) maxValue = blockMax;
+        }
+        for (; i < size; i++) {
+            if (x.get(i) > maxValue) maxValue = x.get(i);
         }
 
-        // The remaining part is done sequentially
-        for (; i < size; i++) {
-            if (x.get(i) > maxValue) {
-                maxValue = x.get(i);
-            }
-        }
+        // Step 2: exp(x - max) and sum — scalar, since Java Vector API has no vectorised exp
         i = 0;
-
-        // exp and sum
         float sum = 0.0f;
-        for (; i < loopBound; i += species.length()) {
-            FloatVector vA = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            vA.intoMemorySegment(x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
-            sum += vA.reduceLanes(VectorOperators.ADD);
-        }
-
-        // The remaining part is done sequentially
         for (; i < size; i++) {
-            sum += x.get(i);
+            float val = TornadoMath.exp(x.get(i) - maxValue);
+            x.set(i, val);
+            sum += val;
         }
 
+        // Step 3: Normalize (vectorized)
         i = 0;
         for (; i < loopBound; i += species.length()) {
             FloatVector vX = FloatVector.fromMemorySegment(species, x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
             FloatVector result = vX.div(sum);
             result.intoMemorySegment(x.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
         }
-        // The remaining part is done sequentially
         for (; i < size; i++) {
-            x.set(i,  x.get(i) /  sum);
+            x.set(i, x.get(i) / sum);
         }
     }
 
@@ -321,7 +319,8 @@ public class SoftMax extends BenchmarkDriver {
     public TornadoExecutionPlan buildExecutionPlan() {
         KernelContext kernelContext = new KernelContext();
         TaskGraph taskGraph = new TaskGraph("benchmark")
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, x, temp) //
+                .transferToDevice(DataTransferMode.EVERY_EXECUTION, x) //
+                .transferToDevice(DataTransferMode.FIRST_EXECUTION, temp) //
                 .task("softmax.reduceMax", SoftMax::reductionOneBlock, kernelContext, temp, x) //
                 .task("softmax.reduceExp", SoftMax::reductionOneBlock2, kernelContext, temp, x)  //
                 .task("softmax.map", SoftMax::reductionOneBlock3, kernelContext, temp, x)  //

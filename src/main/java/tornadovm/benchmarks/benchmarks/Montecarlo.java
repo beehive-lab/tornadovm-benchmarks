@@ -202,11 +202,11 @@ public class Montecarlo extends BenchmarkDriver {
             long seed = j;
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-            float x = (seed & 0x0FFFFFFF) / 268435455f;
+            float xVal = (seed & 0x0FFFFFFF) / 268435455f;
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-            float y = (seed & 0x0FFFFFFF) / 268435455f;
-            float dist = (float) Math.sqrt(x * x + y * y);
+            float yVal = (seed & 0x0FFFFFFF) / 268435455f;
+            float dist = (float) Math.sqrt(xVal * xVal + yVal * yVal);
             if (dist <= 1.0f) {
                 output.set(j, 1.0f);
             } else {

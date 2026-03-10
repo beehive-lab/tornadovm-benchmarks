@@ -165,10 +165,9 @@ public class Montecarlo extends BenchmarkDriver {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
         final int loopBound = species.loopBound(iterations);
         int j = 0;
+        float[] x = new float[species.length()];
+        float[] y = new float[species.length()];
         for (;j < loopBound; j+= species.length()) {
-            // Create vector x and vector y
-            float[] x = new float[species.length()];
-            float[] y = new float[species.length()];
             for (int i = 0; i < species.length(); i++) {
                 long seed = j + i;
                 // generate a pseudo random number (you do need it twice)

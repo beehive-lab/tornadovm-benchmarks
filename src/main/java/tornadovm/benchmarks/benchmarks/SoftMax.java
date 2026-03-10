@@ -95,13 +95,13 @@ public class SoftMax extends BenchmarkDriver {
     private void setInit() {
         IntStream.range(0, size).forEach(i -> {
             x.set(i, xInit.get(i));
-            xRef.set(i, xInit.get(i));
             xStreams[i] = xInit.get(i);
         });
     }
 
     @Override
     public void computeSequential() {
+        IntStream.range(0, size).forEach(i -> xRef.set(i, xInit.get(i)));
         // find max value (for numerical stability)
         float max_val = xRef.get(0);
         for (int i = 1; i < size; i++) {

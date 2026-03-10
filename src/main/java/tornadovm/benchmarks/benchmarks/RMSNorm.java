@@ -37,12 +37,8 @@ import tornadovm.benchmarks.utils.Catalog;
 import tornadovm.benchmarks.utils.Config;
 import tornadovm.benchmarks.utils.Range;
 import tornadovm.benchmarks.utils.Utils;
-import uk.ac.manchester.tornado.api.GridScheduler;
-import uk.ac.manchester.tornado.api.KernelContext;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
-import uk.ac.manchester.tornado.api.WorkerGrid;
-import uk.ac.manchester.tornado.api.WorkerGrid1D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
 import uk.ac.manchester.tornado.api.annotations.Reduce;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
@@ -241,76 +237,26 @@ public class RMSNorm extends BenchmarkDriver {
         output.set(0, ss);
     }
 
-    private static void map(FloatArray output, FloatArray weights, FloatArray x) {
-        float acc = 1.0f;
+    private static void map(FloatArray output, FloatArray weights, FloatArray x, FloatArray temp) {
+        float acc = temp.get(0);
         for (@Parallel int i = 0; i < x.getSize(); i++) {
             output.set(i,  weights.get(i) * (acc * x.get(i)));
         }
     }
 
 
-    /** Reductions launched in a single thread-block
-     *
-     * @param context
-     * @param output
-     * @param x
-     * @param weights
-     */
-    private static void reductionOneBlock(KernelContext context, FloatArray output, FloatArray x, FloatArray weights) {
-        int gid = context.globalIdx;
-        int lid = context.localIdx;
-        int groupSize = context.localGroupSizeX;
-        float[] localX = context.allocateFloatLocalArray(1024);
-        localX[lid] = x.get(gid);
-        localX[lid] = localX[lid] * localX[lid];
-        for (int stride = (groupSize / 2); stride > 0; stride /= 2) {
-            context.localBarrier();
-            if (lid < stride) {
-                localX[lid] += localX[lid + stride];
-            }
-        }
-
-        if (lid == 0) {
-            float ss = localX[0];
-            ss /= x.getSize();
-            ss += 1e-5f;
-            ss = 1.0f / TornadoMath.sqrt(ss);
-            output.set(0, ss);
-        }
-    }
-
-    private static void reductionOneBlock2(KernelContext context, FloatArray output, FloatArray x, FloatArray weights, FloatArray temp) {
-        int gid = context.globalIdx;
-        float ss = temp.get(0);
-        output.set(gid, weights.get(gid) * (ss * x.get(gid)));
-    }
-
     // ======================================================================
 
     @Override
     public TornadoExecutionPlan buildExecutionPlan() {
-        TaskGraph taskGraphLoop = new TaskGraph("benchmark")
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, weights, x) //
-                .task("reduce", RMSNorm::reduce, output, x) //
-                .task("singleNorm", RMSNorm::singleNorm, output, size) //
-                .task("map", RMSNorm::map, output, weights, x) //
-                .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
-
-        KernelContext kernelContext = new KernelContext();
         TaskGraph taskGraph = new TaskGraph("benchmark")
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, weights, x, temp) //
-                .task("reductionsOneBlock", RMSNorm::reductionOneBlock, kernelContext, temp, x, weights) //
-                .task("mapContext", RMSNorm::reductionOneBlock2, kernelContext, output, x, weights, temp)  //
+                .transferToDevice(DataTransferMode.FIRST_EXECUTION, weights, x) //
+                .task("reduce", RMSNorm::reduce, temp, x) //
+                .task("singleNorm", RMSNorm::singleNorm, temp, size) //
+                .task("map", RMSNorm::map, output, weights, x, temp) //
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, output);
 
-        WorkerGrid workerGrid = new WorkerGrid1D(size);
-        workerGrid.setLocalWork(size, 1, 1);
-        GridScheduler gridScheduler = new GridScheduler("benchmark.reductionsOneBlock", workerGrid);
-        gridScheduler.addWorkerGrid("benchmark.mapContext", workerGrid);
-
-        TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
-        executionPlan.withGridScheduler(gridScheduler);
-        return executionPlan;
+        return new TornadoExecutionPlan(taskGraph.snapshot());
     }
 
     @State(Scope.Thread)

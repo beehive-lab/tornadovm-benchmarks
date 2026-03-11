@@ -37,12 +37,10 @@ import tornadovm.benchmarks.utils.Catalog;
 import tornadovm.benchmarks.utils.Config;
 import tornadovm.benchmarks.utils.Range;
 import tornadovm.benchmarks.utils.Utils;
-import uk.ac.manchester.tornado.api.GridScheduler;
-import uk.ac.manchester.tornado.api.KernelContext;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
-import uk.ac.manchester.tornado.api.WorkerGrid;
-import uk.ac.manchester.tornado.api.WorkerGrid1D;
+import uk.ac.manchester.tornado.api.annotations.Parallel;
+import uk.ac.manchester.tornado.api.annotations.Reduce;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
@@ -67,6 +65,7 @@ public class SoftMax extends BenchmarkDriver {
     private final int size;
     private FloatArray xRef;
     private FloatArray xInit;
+    private FloatArray xSeq;  // isolated buffer for computeSequential(); never shared with parallel backends
     private FloatArray x;
     private FloatArray temp;
     private Float[] xStreams;
@@ -76,11 +75,31 @@ public class SoftMax extends BenchmarkDriver {
         this.size = size;
         xRef = new FloatArray(size);
         xInit = new FloatArray(size);
+        xSeq = new FloatArray(size);
         x = new FloatArray(size);
         temp = new FloatArray(1);
         xStreams = new Float[size];
         init();
         setInit();
+        initReference();
+    }
+
+    private void initReference() {
+        // Pre-compute xRef = softmax(xInit) exactly once at construction.
+        // xRef is never modified again, so every backend validates against
+        // a stable, correct reference regardless of execution order.
+        float max_val = xRef.get(0);
+        for (int i = 1; i < size; i++) {
+            if (xRef.get(i) > max_val) max_val = xRef.get(i);
+        }
+        float sum = 0.0f;
+        for (int i = 0; i < size; i++) {
+            xRef.set(i, TornadoMath.exp(xRef.get(i) - max_val));
+            sum += xRef.get(i);
+        }
+        for (int i = 0; i < size; i++) {
+            xRef.set(i, xRef.get(i) / sum);
+        }
     }
 
     private void init() {
@@ -94,6 +113,7 @@ public class SoftMax extends BenchmarkDriver {
 
     private void setInit() {
         IntStream.range(0, size).forEach(i -> {
+            xSeq.set(i, xInit.get(i));
             x.set(i, xInit.get(i));
             xStreams[i] = xInit.get(i);
         });
@@ -101,23 +121,22 @@ public class SoftMax extends BenchmarkDriver {
 
     @Override
     public void computeSequential() {
-        IntStream.range(0, size).forEach(i -> xRef.set(i, xInit.get(i)));
         // find max value (for numerical stability)
-        float max_val = xRef.get(0);
+        float max_val = xSeq.get(0);
         for (int i = 1; i < size; i++) {
-            if (xRef.get(i) > max_val) {
-                max_val = xRef.get(i);
+            if (xSeq.get(i) > max_val) {
+                max_val = xSeq.get(i);
             }
         }
         // exp and sum
         float sum = 0.0f;
         for (int i = 0; i < size; i++) {
-            xRef.set(i, TornadoMath.exp(xRef.get(i) - max_val));
-            sum += xRef.get(i);
+            xSeq.set(i, TornadoMath.exp(xSeq.get(i) - max_val));
+            sum += xSeq.get(i);
         }
         // normalize
         for (int i = 0; i < size; i++) {
-            xRef.set(i, xRef.get(i) / sum);
+            xSeq.set(i, xSeq.get(i) / sum);
         }
     }
 
@@ -159,71 +178,69 @@ public class SoftMax extends BenchmarkDriver {
     @Override
     public void computeWithJavaThreads() throws InterruptedException {
         Range[] ranges = Utils.createRangesForCPU(x.getSize());
-        final int maxProcessors = Runtime.getRuntime().availableProcessors();
+        final int maxProcessors = ranges.length;
+
+        float[] buf = new float[size];
+        for (int i = 0; i < size; i++) buf[i] = x.get(i);
 
         Thread[] threads = new Thread[maxProcessors];
-        // full reduction per thread
         float[] reduction = new float[maxProcessors];
+
+        // Phase 1: find max
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
                 float maxValue = Float.MIN_VALUE;
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    if (x.get(j) > maxValue) {
-                        maxValue = x.get(j);
-                    }
+                    if (buf[j] > maxValue) maxValue = buf[j];
                 }
                 reduction[t] = maxValue;
             });
         });
-
         runThreads(threads);
 
         float max_value = Float.MIN_VALUE;
         for (float v : reduction) {
-            if (v > max_value) {
-                max_value = v;
-            }
+            if (v > max_value) max_value = v;
         }
         final float max_val = max_value;
+
+        // Phase 2: exp(x - max)
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    x.set(j, TornadoMath.exp(x.get(j) - max_val));
+                    buf[j] = (float) Math.exp(buf[j] - max_val);
                 }
             });
         });
         runThreads(threads);
 
-        // Reduction
+        // Phase 3: sum
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
                 float ss = 0.0f;
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    ss += x.get(j);
+                    ss += buf[j];
                 }
                 reduction[t] = ss;
             });
         });
-
         runThreads(threads);
 
-        // Sum reduction on CPU
         float ss = 0.0f;
-        for (float v : reduction) {
-            ss += v;
-        }
-
+        for (float v : reduction) ss += v;
         final float sum = ss;
 
+        // Phase 4: normalize
         IntStream.range(0, threads.length).forEach(t -> {
             threads[t] = new Thread(() -> {
                 for (int j = ranges[t].min(); j < ranges[t].max(); j++) {
-                    x.set(j , x.get(j) / sum);
+                    buf[j] = buf[j] / sum;
                 }
             });
         });
-
         runThreads(threads);
+
+        for (int i = 0; i < size; i++) x.set(i, buf[i]);
     }
 
     /**
@@ -268,73 +285,54 @@ public class SoftMax extends BenchmarkDriver {
         }
     }
 
-    private static void reductionOneBlock(KernelContext context, FloatArray output, FloatArray x) {
-        int gid = context.globalIdx;
-        int lid = context.localIdx;
-        int groupSize = context.localGroupSizeX;
-        float[] localX = context.allocateFloatLocalArray(1024);
-        localX[lid] = x.get(gid);
-        for (int stride = (groupSize / 2); stride > 0; stride /= 2) {
-            context.localBarrier();
-            if (lid < stride) {
-                localX[lid] = TornadoMath.max(localX[lid], localX[lid + stride]);
-            }
-        }
+    // ======================================================================
+    // TornadoVM kernels — @Reduce pattern avoids local-barrier reductions
+    // that fail on OpenCL CPU and Apple GPU backends.
 
-        if (lid == 0) {
-            // store max
-            output.set(0, localX[0]);
+    // Sequential scan: @Reduce max is unreliable on some GPU/OpenCL-CPU backends.
+    // For n=1024 the sequential pass is negligible and always correct.
+    private static void softmaxFindMax(FloatArray result, FloatArray x) {
+        float max = x.get(0);
+        for (int i = 1; i < x.getSize(); i++) {
+            if (x.get(i) > max) max = x.get(i);
+        }
+        result.set(0, max);
+    }
+
+    private static void softmaxComputeExp(FloatArray x, FloatArray maxArr) {
+        float max = maxArr.get(0);
+        for (@Parallel int i = 0; i < x.getSize(); i++) {
+            x.set(i, TornadoMath.exp(x.get(i) - max));
         }
     }
 
-    private static void reductionOneBlock2(KernelContext context, FloatArray output, FloatArray x) {
-        int gid = context.globalIdx;
-        int lid = context.localIdx;
-        int groupSize = context.localGroupSizeX;
-        float[] localX = context.allocateFloatLocalArray(1024);
-        localX[lid] = x.get(gid);
-        float max = output.get(0);
-        localX[lid] = TornadoMath.exp(localX[lid] - max);
-        x.set(gid, localX[lid]);
-        for (int stride = (groupSize / 2); stride > 0; stride /= 2) {
-            context.localBarrier();
-            if (lid < stride) {
-                localX[lid] += localX[lid + stride];
-            }
-        }
-
-        if (lid == 0) {
-            // final sum stored in ID 0
-            output.set(0, localX[0]);
+    private static void softmaxComputeSum(@Reduce FloatArray result, FloatArray x) {
+        result.set(0, 0.0f);
+        for (@Parallel int i = 0; i < x.getSize(); i++) {
+            result.set(0, result.get(0) + x.get(i));
         }
     }
 
-    private static void reductionOneBlock3(KernelContext context, FloatArray temp, FloatArray x) {
-        int gid = context.globalIdx;
-        float sum = temp.get(0);
-        x.set(gid, x.get(gid) / sum);
+    private static void softmaxNormalize(FloatArray x, FloatArray sumArr) {
+        float sum = sumArr.get(0);
+        for (@Parallel int i = 0; i < x.getSize(); i++) {
+            x.set(i, x.get(i) / sum);
+        }
     }
+
+    // ======================================================================
 
     @Override
     public TornadoExecutionPlan buildExecutionPlan() {
-        KernelContext kernelContext = new KernelContext();
         TaskGraph taskGraph = new TaskGraph("benchmark")
                 .transferToDevice(DataTransferMode.EVERY_EXECUTION, x) //
-                .transferToDevice(DataTransferMode.FIRST_EXECUTION, temp) //
-                .task("softmax.reduceMax", SoftMax::reductionOneBlock, kernelContext, temp, x) //
-                .task("softmax.reduceExp", SoftMax::reductionOneBlock2, kernelContext, temp, x)  //
-                .task("softmax.map", SoftMax::reductionOneBlock3, kernelContext, temp, x)  //
+                .task("softmax.findMax", SoftMax::softmaxFindMax, temp, x) //
+                .task("softmax.computeExp", SoftMax::softmaxComputeExp, x, temp) //
+                .task("softmax.computeSum", SoftMax::softmaxComputeSum, temp, x) //
+                .task("softmax.normalize", SoftMax::softmaxNormalize, x, temp) //
                 .transferToHost(DataTransferMode.EVERY_EXECUTION, x);
 
-        WorkerGrid workerGrid = new WorkerGrid1D(size);
-        workerGrid.setLocalWork(size, 1, 1);
-        GridScheduler gridScheduler = new GridScheduler("benchmark.softmax.reduceMax", workerGrid);
-        gridScheduler.addWorkerGrid("benchmark.softmax.reduceExp", workerGrid);
-        gridScheduler.addWorkerGrid("benchmark.softmax.map", workerGrid);
-
-        TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot());
-        executionPlan.withGridScheduler(gridScheduler);
-        return executionPlan;
+        return new TornadoExecutionPlan(taskGraph.snapshot());
     }
 
     @State(Scope.Thread)
@@ -421,6 +419,7 @@ public class SoftMax extends BenchmarkDriver {
 
     @Override
     public void resetOutputs() {
+        streams = false;
         setInit();
     }
 

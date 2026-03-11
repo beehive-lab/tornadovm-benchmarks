@@ -83,13 +83,19 @@ For example, to run `mxm` with `jmh`:
 ./run.sh mxm jmh
 ```
 
-### How to Change Device for an Specific Benchmark? 
+### How to Change Device for an Specific Benchmark?
 
 For example, device `0:2` for the benchmark `mxv`:
 
 ```bash
 tornado --printKernel --jvm="-Dtornado.device.memory=2GB -Dbenchmark.mxv.device=0:2" -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.Main mxv
 ```
+
+### Configuration flags
+
+For the full list of flags (input sizes, iteration counts, device selection, backend filtering):
+
+see [docs/flags.md](docs/flags.md)
 
 ## Acknowledgments
 

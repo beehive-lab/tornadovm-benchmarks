@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +43,12 @@ import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -105,15 +110,44 @@ public class Saxpy extends BenchmarkDriver {
         }
     }
 
+    /**
+     * Reuses the shared thread pool supplied by {@link BenchmarkDriver} to avoid
+     * per-iteration thread-creation overhead in the timed region.
+     */
+    @Override
+    protected void computeWithJavaThreadsReusing(ExecutorService executor) throws InterruptedException {
+        Range[] ranges = Utils.createRangesForCPU(output.getSize());
+        List<Future<?>> futures = new ArrayList<>(ranges.length);
+        for (int t = 0; t < ranges.length; t++) {
+            final int idx = t;
+            futures.add(executor.submit(() -> {
+                for (int j = ranges[idx].min(); j < ranges[idx].max(); j++) {
+                    output.set(j, alpha * arrayA.get(j) + arrayB.get(j));
+                }
+            }));
+        }
+        for (Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     @Override
     public void computeWithParallelVectorAPI() {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
-        final long FLOAT_BYES = 4;
-        for (int i = 0; i < size; i += species.length()) {
-            FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-            FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
-            FloatVector add = a.mul(alpha).add(b);
-            add.intoMemorySegment(output.getSegment(), i * FLOAT_BYES, ByteOrder.nativeOrder());
+        final long FLOAT_BYTES = 4;
+        int i = 0;
+        int loopBound = species.loopBound(size);
+        for (; i < loopBound; i += species.length()) {
+            FloatVector a = FloatVector.fromMemorySegment(species, arrayA.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            FloatVector b = FloatVector.fromMemorySegment(species, arrayB.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            a.mul(alpha).add(b).intoMemorySegment(output.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+        }
+        for (; i < size; i++) {
+            output.set(i, alpha * arrayA.get(i) + arrayB.get(i));
         }
     }
 

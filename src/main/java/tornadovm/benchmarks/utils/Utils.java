@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.OptionalLong;
 
 public class Utils {
 
@@ -52,6 +53,26 @@ public class Utils {
             });
         }
         return ranges;
+    }
+
+    /**
+     * Returns the median of valid timings (nanoseconds), excluding {@code -1} error markers.
+     * Returns {@code -1.0} if every entry is an error marker.
+     */
+    public static double computeMedian(ArrayList<Long> timings) {
+        long[] valid = timings.stream().mapToLong(Long::longValue).filter(t -> t != -1L).sorted().toArray();
+        if (valid.length == 0) return -1.0;
+        int n = valid.length;
+        return (n % 2 == 0) ? (valid[n / 2 - 1] + valid[n / 2]) / 2.0 : valid[n / 2];
+    }
+
+    /**
+     * Returns the minimum of valid timings (nanoseconds), excluding {@code -1} error markers.
+     * Returns {@code -1L} if every entry is an error marker.
+     */
+    public static long computeMin(ArrayList<Long> timings) {
+        OptionalLong min = timings.stream().mapToLong(Long::longValue).filter(t -> t != -1L).min();
+        return min.isPresent() ? min.getAsLong() : -1L;
     }
 
     public static void dumpPerformanceTable(ArrayList<ArrayList<Long>> timers, int implementationsToCompare, String benchmarkName, String header) {

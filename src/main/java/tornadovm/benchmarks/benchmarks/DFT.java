@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -172,8 +172,13 @@ public class DFT extends BenchmarkDriver {
 
     @Override
     public void resetOutputs() {
-        outimagRef.init(0);
-        outrealRef.init(0);
+        outimag.init(0);
+        outreal.init(0);
+    }
+
+    /** Package-private hook for unit tests: true iff the last parallel result matches the sequential reference. */
+    boolean isResultCorrect() {
+        return validate(size, outrealRef, outimagRef, outreal, outimag);
     }
 
     @Override

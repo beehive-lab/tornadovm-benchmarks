@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,8 @@
  */
 package tornadovm.benchmarks.benchmarks;
 
+import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
@@ -40,6 +42,7 @@ import uk.ac.manchester.tornado.api.enums.DataTransferMode;
 import uk.ac.manchester.tornado.api.math.TornadoMath;
 import uk.ac.manchester.tornado.api.types.arrays.FloatArray;
 
+import java.nio.ByteOrder;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
@@ -192,18 +195,54 @@ public class Blackscholes extends BenchmarkDriver {
     final float SIGMA_UPPER_LIMIT = 0.10f;
     @Override
     public void computeWithParallelVectorAPI() {
-        for (int idx = 0; idx < callResultRef.getSize(); idx++) {
-            float val = input.get(idx);
-            final float S = S_LOWER_LIMIT * val + S_UPPER_LIMIT * (1.0f - val);
-            final float K = K_LOWER_LIMIT * val + K_UPPER_LIMIT * (1.0f - val);
-            final float T = T_LOWER_LIMIT * val + T_UPPER_LIMIT * (1.0f - val);
-            final float r = R_LOWER_LIMIT * val + R_UPPER_LIMIT * (1.0f - val);
-            final float v = SIGMA_LOWER_LIMIT * val + SIGMA_UPPER_LIMIT * (1.0f - val);
+        VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
+        final int len = species.length();
+        final long FLOAT_BYTES = 4L;
+        int loopBound = species.loopBound(size);
+        float[] callArr = new float[len];
+        float[] putArr  = new float[len];
 
+        int i = 0;
+        for (; i < loopBound; i += len) {
+            // Load a SIMD-width slice of input values from the backing MemorySegment.
+            FloatVector vRand = FloatVector.fromMemorySegment(species, input.getSegment(),
+                    i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            float[] rands = vRand.toArray();
+
+            // Black-Scholes involves log/exp/sqrt — no VectorAPI intrinsics for these,
+            // so transcendentals are computed per-lane in scalar.  The vectorized load
+            // and store still amortise memory-bandwidth overhead across lanes.
+            for (int j = 0; j < len; j++) {
+                float rand = rands[j];
+                float S = S_LOWER_LIMIT * rand + S_UPPER_LIMIT * (1.0f - rand);
+                float K = K_LOWER_LIMIT * rand + K_UPPER_LIMIT * (1.0f - rand);
+                float T = T_LOWER_LIMIT * rand + T_UPPER_LIMIT * (1.0f - rand);
+                float r = R_LOWER_LIMIT * rand + R_UPPER_LIMIT * (1.0f - rand);
+                float v = SIGMA_LOWER_LIMIT * rand + SIGMA_UPPER_LIMIT * (1.0f - rand);
+                float d1 = (TornadoMath.log(S / K) + ((r + (v * v / 2)) * T)) / v * TornadoMath.sqrt(T);
+                float d2 = d1 - v * TornadoMath.sqrt(T);
+                callArr[j] = S * cnd(d1) - K * TornadoMath.exp(T * (-1) * r) * cnd(d2);
+                putArr[j]  = K * TornadoMath.exp(T * -r) * cnd(-d2) - S * cnd(-d1);
+            }
+
+            FloatVector.fromArray(species, callArr, 0)
+                    .intoMemorySegment(callResult.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+            FloatVector.fromArray(species, putArr, 0)
+                    .intoMemorySegment(putResult.getSegment(), i * FLOAT_BYTES, ByteOrder.nativeOrder());
+        }
+
+        // Scalar tail for elements that don't fill a full vector.
+        for (; i < size; i++) {
+            float val = input.get(i);
+            float S = S_LOWER_LIMIT * val + S_UPPER_LIMIT * (1.0f - val);
+            float K = K_LOWER_LIMIT * val + K_UPPER_LIMIT * (1.0f - val);
+            float T = T_LOWER_LIMIT * val + T_UPPER_LIMIT * (1.0f - val);
+            float r = R_LOWER_LIMIT * val + R_UPPER_LIMIT * (1.0f - val);
+            float v = SIGMA_LOWER_LIMIT * val + SIGMA_UPPER_LIMIT * (1.0f - val);
             float d1 = (TornadoMath.log(S / K) + ((r + (v * v / 2)) * T)) / v * TornadoMath.sqrt(T);
-            float d2 = d1 - (v * TornadoMath.sqrt(T));
-            callResultRef.set(idx, S * cnd(d1) - K * TornadoMath.exp(T * (-1) * r) * cnd(d2));
-            putResultRef.set(idx, K * TornadoMath.exp(T * -r) * cnd(-d2) - S * cnd(-d1));
+            float d2 = d1 - v * TornadoMath.sqrt(T);
+            callResult.set(i, S * cnd(d1) - K * TornadoMath.exp(T * (-1) * r) * cnd(d2));
+            putResult.set(i, K * TornadoMath.exp(T * -r) * cnd(-d2) - S * cnd(-d1));
         }
     }
 
@@ -246,6 +285,11 @@ public class Blackscholes extends BenchmarkDriver {
     public void resetOutputs() {
         callResult.init(0);
         putResult.init(0);
+    }
+
+    /** Package-private hook for unit tests: true iff the last parallel result matches the sequential reference. */
+    boolean isResultCorrect() {
+        return validate(callResultRef, putResultRef, callResult, putResult);
     }
 
     private static boolean validate(FloatArray callRef, FloatArray putRef, FloatArray callPrice, FloatArray putPrice) {

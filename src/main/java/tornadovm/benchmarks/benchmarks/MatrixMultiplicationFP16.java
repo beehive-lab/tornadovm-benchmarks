@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,28 +31,24 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.runner.options.TimeValue;
 import tornadovm.benchmarks.utils.Catalog;
-import tornadovm.benchmarks.utils.Config;
-import tornadovm.benchmarks.utils.Option;
 import tornadovm.benchmarks.utils.Range;
 import tornadovm.benchmarks.utils.Utils;
-import uk.ac.manchester.tornado.api.GridScheduler;
 import uk.ac.manchester.tornado.api.TaskGraph;
 import uk.ac.manchester.tornado.api.TornadoExecutionPlan;
-import uk.ac.manchester.tornado.api.WorkerGrid;
-import uk.ac.manchester.tornado.api.WorkerGrid2D;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
-import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.DataTransferMode;
-import uk.ac.manchester.tornado.api.exceptions.TornadoExecutionPlanException;
 import uk.ac.manchester.tornado.api.types.HalfFloat;
 import uk.ac.manchester.tornado.api.types.arrays.HalfFloatArray;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.lang.foreign.ValueLayout.JAVA_SHORT;
@@ -63,16 +59,113 @@ import static java.lang.foreign.ValueLayout.JAVA_SHORT;
  *     tornado -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.benchmarks.MatrixMultiplicationFP16
  * </code>
  */
-public class MatrixMultiplicationFP16 extends Benchmark {
+public class MatrixMultiplicationFP16 extends BenchmarkDriver {
 
     int size;
-    private double FLOP;
-    private final static float TIME_SCALE_SECS = 1.0E09f;
+
+    // ── inputs (immutable across iterations) ─────────────────────────────────
+    private FP16Matrix matrixA;
+    private FP16Matrix matrixB;
+
+    // ── outputs ──────────────────────────────────────────────────────────────
+    private FP16Matrix outputReference;  // written by computeSequential()
+    private FP16Matrix outputCpu;        // written by all parallel CPU backends
+
+    // ── TornadoVM state ──────────────────────────────────────────────────────
+    private HalfFloatArray tma;
+    private HalfFloatArray tmb;
+    private HalfFloatArray resultTornadoVM;
+    private boolean tornadoVMActive = false;
 
     public MatrixMultiplicationFP16(int size) {
         this.size = size;
-        FLOP = 2 * Math.pow(size, 3);
+        matrixA = new FP16Matrix(size, size);
+        matrixB = new FP16Matrix(size, size);
+        matrixA.initRandom();
+        matrixB.initRandom();
+        outputReference = new FP16Matrix(size, size);
+        outputCpu = new FP16Matrix(size, size);
+        tma = Multiplication.transformMatrixForTornadoVM(matrixA);
+        tmb = Multiplication.transformMatrixForTornadoVM(matrixB);
+        resultTornadoVM = new HalfFloatArray(size * size);
     }
+
+    // ── BenchmarkDriver abstract methods ─────────────────────────────────────
+
+    @Override
+    public void computeSequential() {
+        Multiplication.mxmSequential(matrixA, matrixB, outputReference);
+    }
+
+    @Override
+    public void computeWithJavaStreams() {
+        Multiplication.mxmParallelStreams(matrixA, matrixB, outputCpu);
+    }
+
+    @Override
+    public void computeWithJavaThreads() throws InterruptedException {
+        Multiplication.mxmParallelThreads(matrixA, matrixB, outputCpu);
+    }
+
+    @Override
+    protected void computeWithJavaThreadsReusing(ExecutorService executor) throws InterruptedException {
+        Range[] ranges = Utils.createRangesForCPU(size);
+        List<Future<?>> futures = new ArrayList<>(ranges.length);
+        for (int t = 0; t < ranges.length; t++) {
+            final int idx = t;
+            futures.add(executor.submit(() -> {
+                for (int i = ranges[idx].min(); i < ranges[idx].max(); i++) {
+                    for (int j = 0; j < size; j++) {
+                        float acc = 0;
+                        for (int k = 0; k < size; k++) {
+                            acc += matrixA.get(i, k) * matrixB.get(k, j);
+                        }
+                        outputCpu.set(i, j, acc);
+                    }
+                }
+            }));
+        }
+        for (Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Override
+    public void computeWithParallelVectorAPI() {
+        // FP16 Vector API is not supported; the driver catches the thrown exception and marks as failed.
+        Multiplication.mxmParallelVectorized(matrixA, matrixB, outputCpu);
+    }
+
+    @Override
+    public TornadoExecutionPlan buildExecutionPlan() {
+        tornadoVMActive = true;
+        TaskGraph taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM, size);
+        return new TornadoExecutionPlan(taskGraph.snapshot());
+    }
+
+    @Override
+    public void resetOutputs() {
+        // Inputs are immutable; every backend completely overwrites its output — no reset needed.
+    }
+
+    @Override
+    public void validate(int run) {
+        if (run == 0) {
+            if (tornadoVMActive) {
+                System.out.println(" -- Result Correct? " + Multiplication.verify(resultTornadoVM, outputReference, size, size));
+            } else {
+                System.out.println(" -- Result Correct? " + Multiplication.verify(outputCpu, outputReference));
+            }
+        } else {
+            System.out.println();
+        }
+    }
+
+    // ── Inner classes (computation kernels) ──────────────────────────────────
 
     /**
      * Float MxN Matrix
@@ -124,8 +217,6 @@ public class MatrixMultiplicationFP16 extends Benchmark {
     }
 
     private static class Multiplication {
-
-        private static final boolean DEBUG = false;
 
         /**
          * Matrix Multiplication using Panama Segments Sequentially
@@ -195,7 +286,6 @@ public class MatrixMultiplicationFP16 extends Benchmark {
             return matrixTranspose;
         }
 
-
         public static void mxmSequentialVectorized(FP16Matrix a, FP16Matrix b, FP16Matrix c) {
             throw new UnsupportedOperationException("Vector API FP16 Not Supported");
         }
@@ -263,14 +353,6 @@ public class MatrixMultiplicationFP16 extends Benchmark {
             return check;
         }
 
-        private static void validate(int run, FP16Matrix matrix, FP16Matrix referenceMatrix) {
-            if (run == 0) {
-                System.out.println(" -- Result Correct? " + Multiplication.verify(matrix, referenceMatrix));
-            } else {
-                System.out.println();
-            }
-        }
-
         private static boolean verify(HalfFloatArray matrix, FP16Matrix referenceMatrix, int m, int n) {
             boolean check = true;
             for (int i = 0; i < m; i++) {
@@ -286,14 +368,6 @@ public class MatrixMultiplicationFP16 extends Benchmark {
                 }
             }
             return check;
-        }
-
-        private static void validate(int run, HalfFloatArray matrix, FP16Matrix referenceMatrix, int size) {
-            if (run == 0) {
-                System.out.println(" -- Result Correct? " + Multiplication.verify(matrix, referenceMatrix, size, size));
-            } else {
-                System.out.println();
-            }
         }
     }
 
@@ -420,163 +494,6 @@ public class MatrixMultiplicationFP16 extends Benchmark {
                 .forks(1) //
                 .build();
         new Runner(opt).run();
-    }
-
-    @Override
-    public void runTestAll(final int size, Option option) throws InterruptedException {
-
-        // Using Panama Segments
-        FP16Matrix matrixA = new FP16Matrix(size, size);
-        FP16Matrix matrixB = new FP16Matrix(size, size);
-
-        // Matrix for results
-        FP16Matrix outputReference = new FP16Matrix(size, size);
-        FP16Matrix matrixD = new FP16Matrix(size, size);
-        FP16Matrix matrixE = new FP16Matrix(size, size);
-        FP16Matrix matrixF = new FP16Matrix(size, size);
-        FP16Matrix matrixG = new FP16Matrix(size, size);
-
-        matrixA.initRandom();
-        matrixB.initRandom();
-
-        // 6 implementations to compare
-        ArrayList<ArrayList<Long>> timers = IntStream.range(0, 6) //
-                .<ArrayList<Long>>mapToObj(i -> new ArrayList<>()) //
-                .collect(Collectors.toCollection(ArrayList::new));
-
-        // 1. Sequential
-        for (int i = 0; i < Config.RUNS; i++) {
-            long start = System.nanoTime();
-            Multiplication.mxmSequential(matrixA, matrixB, outputReference);
-            long end = System.nanoTime();
-            long elapsedTime = (end - start);
-            timers.get(0).add(elapsedTime);
-            double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-            double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-            String formatGPUFGlops = String.format("%.2f", gigaFlops);
-
-            System.out.println("Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-
-            if (option == Option.TORNADO_ONLY) {
-                // We only run one iteration just to run the reference implementation to check results.
-                break;
-            }
-        }
-
-        if (option == Option.ALL || option == Option.JAVA_ONLY) {
-            // 2. Parallel Streams
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                Multiplication.mxmParallelStreams(matrixA, matrixB, matrixD);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(1).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                String formatGPUFGlops = String.format("%.2f", gigaFlops);
-
-                System.out.print("Stream Elapsed time: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                Multiplication.validate(i, matrixD, outputReference);
-            }
-
-            // 3. Parallel with Java Threads
-            for (int i = 0; i < Config.RUNS; i++) {
-                long start = System.nanoTime();
-                Multiplication.mxmParallelThreads(matrixA, matrixB, matrixE);
-                long end = System.nanoTime();
-                long elapsedTime = (end - start);
-                timers.get(2).add(elapsedTime);
-                double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                String formatGPUFGlops = String.format("%.2f", gigaFlops);
-
-                System.out.print("Elapsed time Threads: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                Multiplication.validate(i, matrixE, outputReference);
-            }
-
-            // 4. Sequential Using the Vector API
-            FP16Matrix bTranspose = Multiplication.transposeMatrix(matrixB);
-            for (int i = 0; i < Config.RUNS; i++) {
-                try {
-                    long start = System.nanoTime();
-                    Multiplication.mxmSequentialVectorized(matrixA, bTranspose, matrixF);
-                    long end = System.nanoTime();
-                    long elapsedTime = (end - start);
-                    timers.get(3).add(elapsedTime);
-                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                    double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                    String formatGPUFGlops = String.format("%.2f", gigaFlops);
-
-                    System.out.print("Elapsed time Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                    Multiplication.validate(i, matrixF, outputReference);
-                } catch (UnsupportedOperationException e) {
-                    timers.get(3).add(-1L);
-                }
-            }
-
-            // 5. Parallel Streams using the Vector API
-            for (int i = 0; i < Config.RUNS; i++) {
-                try {
-                    long start = System.nanoTime();
-                    Multiplication.mxmParallelVectorized(matrixA, bTranspose, matrixG);
-                    long end = System.nanoTime();
-                    long elapsedTime = (end - start);
-                    timers.get(4).add(elapsedTime);
-                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                    double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                    String formatGPUFGlops = String.format("%.2f", gigaFlops);
-
-                    System.out.print("Elapsed time Parallel Vectorized: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                    Multiplication.validate(i, matrixG, outputReference);
-                } catch (UnsupportedOperationException e) {
-                    timers.get(4).add(-1L);
-                }
-            }
-        }
-
-        if (option == Option.ALL || option == Option.TORNADO_ONLY) {
-            // TornadoVM
-            HalfFloatArray tma = Multiplication.transformMatrixForTornadoVM(matrixA);
-            HalfFloatArray tmb = Multiplication.transformMatrixForTornadoVM(matrixB);
-            HalfFloatArray resultTornadoVM = new HalfFloatArray(size * size);
-            TaskGraph taskGraph = Multiplication.createTaskGraph(tma, tmb, resultTornadoVM, size);
-
-            try(TornadoExecutionPlan executionPlan = new TornadoExecutionPlan(taskGraph.snapshot())) {
-                TornadoDevice device = TornadoExecutionPlan.getDevice(0, 0);
-                WorkerGrid workerGrid = new WorkerGrid2D(size, size);
-                workerGrid.setLocalWork(8, 8, 1);
-                GridScheduler gridScheduler = new GridScheduler("benchmark.mxm", workerGrid);
-                executionPlan
-                        //.withGridScheduler(gridScheduler)
-                        .withDevice(device);
-
-                // 6. On the GPU using TornadoVM
-                for (int i = 0; i < Config.RUNS; i++) {
-                    long start = System.nanoTime();
-                    executionPlan.execute();
-                    long end = System.nanoTime();
-                    long elapsedTime = (end - start);
-                    timers.get(5).add(elapsedTime);
-                    double elapsedTimeMilliseconds = elapsedTime * 1E-6;
-
-                    double gigaFlops = (1.0E-9 * FLOP) / (elapsedTime / TIME_SCALE_SECS);
-                    String formatGPUFGlops = String.format("%.2f", gigaFlops);
-
-                    System.out.print("Elapsed time TornadoVM-GPU: " + (elapsedTime) + " (ns)  -- " + elapsedTimeMilliseconds + " (ms) -- " + formatGPUFGlops + " GFLOP/s");
-                    Multiplication.validate(i, resultTornadoVM, outputReference, size);
-                }
-            } catch (TornadoExecutionPlanException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        if (option == Option.ALL) {
-            Utils.dumpPerformanceTable(timers, 6, "mxm", Config.HEADER);
-        }
     }
 
     @Override

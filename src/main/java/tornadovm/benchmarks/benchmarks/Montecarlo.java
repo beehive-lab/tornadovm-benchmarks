@@ -165,10 +165,9 @@ public class Montecarlo extends BenchmarkDriver {
         VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
         final int loopBound = species.loopBound(iterations);
         int j = 0;
+        float[] x = new float[species.length()];
+        float[] y = new float[species.length()];
         for (;j < loopBound; j+= species.length()) {
-            // Create vector x and vector y
-            float[] x = new float[species.length()];
-            float[] y = new float[species.length()];
             for (int i = 0; i < species.length(); i++) {
                 long seed = j + i;
                 // generate a pseudo random number (you do need it twice)
@@ -203,15 +202,15 @@ public class Montecarlo extends BenchmarkDriver {
             long seed = j;
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-            float x = (seed & 0x0FFFFFFF) / 268435455f;
+            float xVal = (seed & 0x0FFFFFFF) / 268435455f;
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-            float y = (seed & 0x0FFFFFFF) / 268435455f;
-            float dist = (float) Math.sqrt(x * x + y * y);
+            float yVal = (seed & 0x0FFFFFFF) / 268435455f;
+            float dist = (float) Math.sqrt(xVal * xVal + yVal * yVal);
             if (dist <= 1.0f) {
-                outputRef.set(j, 1.0f);
+                output.set(j, 1.0f);
             } else {
-                outputRef.set(j, 0.0f);
+                output.set(j, 0.0f);
             }
         }
     }

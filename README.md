@@ -11,32 +11,39 @@ on certain accelerators. The suite aims to showcase code diversification, with a
 LLM, physics, and math simulation workloads.
 
 
-## How to build?
+## Install the TornadoVM SDK on Linux or macOS
 
+Ensure that your JAVA_HOME points to a supported JDK before using the SDK. Download an SDK package matching your OS, architecture, and accelerator backend (opencl, ptx).
+TornadoVM is distributed through our [**official website**](https://www.tornadovm.org/downloads) and **SDKMAN!**. Install a version that matches your OS, architecture, and accelerator backend.
 
+All TornadoVM SDKs are available on the [SDKMAN! TornadoVM page](https://sdkman.io/sdks/tornadovm/).
+
+### SDKMAN! Installation (Recommended)
+
+#### Install SDKMAN! if not installed already
 ```bash
-./build.sh
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk version
+```
+#### Install TornadoVM via SDKMAN!
+```bash
+sdk install tornadovm
 ```
 
-Then install TornadoVM in a separated directory:
-
+## Build the TornadoVM Benchmark Suite
 ```bash
-git clone https://github.com/beehive-lab/TornadoVM
-cd tornadovm 
-./bin/tornadovm-installer --backend=opencl --jdk jdk21 
-cp setvars.sh .. 
-cd ..
+mvn -Dstyle.color=always clean install
 ```
 
-## How to run? 
-
-Setup the environment:
-
+## Run the functionality tests of the TornadoVM Benchmark Suite
 ```bash
-source setvars.sh
+mvn test
 ```
 
-### Run Individual benchamrk:
+## How to execute the TornadoVM Benchmark Suite?
+
+### Run an individual benchmark:
 
 ```bash
 # Matrix Multiplication
@@ -58,13 +65,13 @@ source setvars.sh
 ./run.sh mt
 ```
 
-## Run all:
+### Run all benchmarks:
 
 ```bash
 ./run.sh 
 ```
 
-## Run with JMH 
+### Run with JMH 
 
 ```bash
 ./run.sh <benchmark> jmh
@@ -76,11 +83,25 @@ For example, to run `mxm` with `jmh`:
 ./run.sh mxm jmh
 ```
 
-## How to Change Device for an Specific Benchmark? 
+### How to Change Device for an Specific Benchmark?
 
 For example, device `0:2` for the benchmark `mxv`:
 
 ```bash
 tornado --printKernel --jvm="-Dtornado.device.memory=2GB -Dbenchmark.mxv.device=0:2" -cp target/tornadovm-benchmarks-1.0-SNAPSHOT.jar tornadovm.benchmarks.Main mxv
 ```
-    
+
+### Configuration flags
+
+For the full list of flags (input sizes, iteration counts, device selection, backend filtering):
+
+see [docs/flags.md](docs/flags.md)
+
+## Acknowledgments
+
+This work has been supported by the following EU & UKRI grants (most recent first):
+
+- EU Horizon Europe & UKRI [AERO 101092850](https://aero-project.eu/).
+- EU Horizon Europe & UKRI [P2CODE 101093069](https://p2code-project.eu/).
+- EU Horizon Europe & UKRI [ENCRYPT 101070670](https://encrypt-project.eu).
+- EU Horizon Europe & UKRI [TANGO 101070052](https://tango-project.eu).

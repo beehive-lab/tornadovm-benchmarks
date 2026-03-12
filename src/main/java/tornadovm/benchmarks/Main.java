@@ -35,6 +35,8 @@ import tornadovm.benchmarks.benchmarks.SoftMax;
 import tornadovm.benchmarks.utils.Catalog;
 import tornadovm.benchmarks.utils.Config;
 
+import java.util.Set;
+
 /**
  * How to run?
  *
@@ -68,9 +70,12 @@ public class Main {
         };
     }
 
+    private static final Set<String> OPTION_KEYWORDS = Set.of(
+            "jmh", "onlyJavaSeq", "onlyJavaPar", "onlyJava", "onlyTornadoVM", "validate");
+
     public static void main(String[] args) throws InterruptedException {
 
-        if (args.length > 0) {
+        if (args.length > 0 && !OPTION_KEYWORDS.contains(args[0])) {
             String benchmarkName = args[0];
             Benchmark benchmark = instanceBenchmark(benchmarkName);
             // remove element 0 from the list

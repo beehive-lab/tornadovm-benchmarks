@@ -68,10 +68,41 @@ mvn test
 ### Run all benchmarks:
 
 ```bash
-./run.sh 
+./run.sh
 ```
 
-### Run with JMH 
+### Run with a specific backend mode:
+
+```bash
+# Parallel Java backends only (Streams, Threads, VectorAPI)
+./run.sh mxm onlyJavaPar
+
+# Sequential Java only
+./run.sh mxm onlyJavaSeq
+
+# All Java backends (no TornadoVM)
+./run.sh mxm onlyJava
+
+# TornadoVM only
+./run.sh mxm onlyTornadoVM
+```
+
+Mode keywords also work without a benchmark name to run all benchmarks:
+
+```bash
+./run.sh onlyJavaPar
+```
+
+### Validate results:
+
+Pass `validate` to check each backend's output against the sequential reference:
+
+```bash
+./run.sh mxm onlyJavaPar validate
+./run.sh onlyTornadoVM validate
+```
+
+### Run with JMH
 
 ```bash
 ./run.sh <benchmark> jmh

@@ -70,20 +70,54 @@ Example — run on device `0:1`:
 
 ## Backend selection (positional argument)
 
-Pass a mode keyword after the benchmark name to restrict which backends run:
+Pass a mode keyword after the benchmark name to restrict which backends run.
+The keyword can appear in any position among the arguments.
 
 | Argument | Backends executed |
 |---|---|
 | *(none)* | Sequential, Streams, Threads, VectorAPI, TornadoVM |
 | `onlyJavaSeq` | Sequential only |
+| `onlyJavaPar` | Streams, Threads, VectorAPI |
 | `onlyJava` | Sequential, Streams, Threads, VectorAPI |
-| `onlyTornadoVM` | Sequential (reference run) + TornadoVM |
+| `onlyTornadoVM` | Sequential (reference, untimed) + TornadoVM |
 | `jmh` | Run via JMH instead of the custom harness |
 
-Example — TornadoVM only:
+Example — parallel Java backends only:
 
 ```bash
-./run.sh softmax onlyTornadoVM
+./run.sh mxm onlyJavaPar
+```
+
+Example — all benchmarks with parallel Java backends only:
+
+```bash
+./run.sh onlyJavaPar
+```
+
+---
+
+## Validation flag
+
+By default, result correctness checks are skipped for faster runs.
+Pass `validate` to enable validation against the sequential reference output.
+When used with `onlyJavaPar`, the sequential implementation is run once silently
+(untimed, no CSV column) to produce the reference.
+
+| Argument | Effect |
+|---|---|
+| *(none)* | Validation skipped |
+| `validate` | Validates each backend's output against the sequential result |
+
+Example — run parallel Java backends and validate results:
+
+```bash
+./run.sh mxm onlyJavaPar validate
+```
+
+Example — validate all benchmarks under TornadoVM:
+
+```bash
+./run.sh onlyTornadoVM validate
 ```
 
 ---
@@ -91,9 +125,8 @@ Example — TornadoVM only:
 ## Combining flags
 
 ```bash
-./run.sh mxm onlyTornadoVM \
+./run.sh mxm onlyJavaPar validate \
   -Dbenchmark.runs=20 \
   -Dbenchmark.warmup=5 \
-  -Dbenchmark.mxm.size=2048 \
-  -Dbenchmark.device=0:1
+  -Dbenchmark.mxm.size=2048
 ```

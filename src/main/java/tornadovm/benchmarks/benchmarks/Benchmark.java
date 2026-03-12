@@ -26,7 +26,7 @@ public abstract class Benchmark {
 
     public abstract void runWithJMH() throws RunnerException;
 
-    public abstract void runTestAll(int size, Option option) throws InterruptedException;
+    public abstract void runTestAll(int size, Option option, boolean validate) throws InterruptedException;
 
     public abstract String getName();
 
@@ -42,8 +42,9 @@ public abstract class Benchmark {
         printMessageInfo("[INFO] " +  getName() + " size: " + printSize());
 
         Option option = Option.ALL;
-        if (args.length > 0) {
-            switch (args[0]) {
+        boolean validate = false;
+        for (String arg : args) {
+            switch (arg) {
                 case "jmh" -> {
                     try {
                         runWithJMH();
@@ -52,12 +53,13 @@ public abstract class Benchmark {
                         System.err.println("An error occurred: " + e.getMessage());
                     }
                 }
-                case "onlyJavaSeq" -> option = Option.JAVA_SEQ_ONLY;
-                case "onlyJavaPar" -> option = Option.JAVA_PAR_ONLY;
-                case "onlyJava" -> option = Option.JAVA_ONLY;
+                case "onlyJavaSeq"  -> option = Option.JAVA_SEQ_ONLY;
+                case "onlyJavaPar"  -> option = Option.JAVA_PAR_ONLY;
+                case "onlyJava"     -> option = Option.JAVA_ONLY;
                 case "onlyTornadoVM" -> option = Option.TORNADO_ONLY;
+                case "validate"     -> validate = true;
             }
         }
-        runTestAll(size, option);
+        runTestAll(size, option, validate);
     }
 }

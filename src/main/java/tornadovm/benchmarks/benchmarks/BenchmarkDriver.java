@@ -137,7 +137,7 @@ public abstract class BenchmarkDriver extends Benchmark {
      * <p>Verbose per-iteration logging can be enabled with {@code Config.VERBOSE = true}.
      */
     @Override
-    public void runTestAll(int size, Option option) throws InterruptedException {
+    public void runTestAll(int size, Option option, boolean validate) throws InterruptedException {
         ArrayList<ArrayList<Long>> timers = new ArrayList<>();
         StringBuilder headerTable = new StringBuilder();
 
@@ -153,7 +153,13 @@ public abstract class BenchmarkDriver extends Benchmark {
         System.out.println();
 
         // ── 1. Sequential ────────────────────────────────────────────────────────
-        if (option != Option.JAVA_PAR_ONLY) {
+        if (option == Option.JAVA_PAR_ONLY) {
+            if (validate) {
+                // Run once silently to populate the reference output used by validate(); not timed.
+                resetOutputs();
+                computeSequential();
+            }
+        } else {
             timers.add(new ArrayList<>());
             headerTable.append("sequential");
 
@@ -217,7 +223,7 @@ public abstract class BenchmarkDriver extends Benchmark {
                 if (Config.VERBOSE) {
                     System.out.printf("  [streams] iter %3d: %,.3f ms%n", i, (end - start) * 1E-6);
                 }
-                if (i == 0) validate(i);
+                if (validate && i == 0) validate(i);
             }
             printBackendSummary("Streams", timers.getLast());
 
@@ -254,7 +260,7 @@ public abstract class BenchmarkDriver extends Benchmark {
                     if (Config.VERBOSE) {
                         System.out.printf("  [threads] iter %3d: %,.3f ms%n", i, (end - start) * 1E-6);
                     }
-                    if (i == 0) validate(i);
+                    if (validate && i == 0) validate(i);
                 }
             } finally {
                 executor.shutdown();
@@ -297,7 +303,7 @@ public abstract class BenchmarkDriver extends Benchmark {
                     if (Config.VERBOSE) {
                         System.out.printf("  [vectorapi] iter %3d: %,.3f ms%n", i, (end - start) * 1E-6);
                     }
-                    if (i == 0) validate(i);
+                    if (validate && i == 0) validate(i);
                 } catch (RuntimeException e) {
                     System.out.println("  [VectorAPI] Error (iter " + i + "): " + e.getMessage());
                     timers.getLast().add(-1L);
@@ -344,7 +350,7 @@ public abstract class BenchmarkDriver extends Benchmark {
                     if (Config.VERBOSE) {
                         System.out.printf("  [tornadovm] iter %3d: %,.3f ms%n", i, (end - start) * 1E-6);
                     }
-                    if (i == 0) validate(i);
+                    if (validate && i == 0) validate(i);
                 }
                 printBackendSummary("TornadoVM (steady-state)", timers.getLast());
 

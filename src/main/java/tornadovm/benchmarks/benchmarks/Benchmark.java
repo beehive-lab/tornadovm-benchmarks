@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,6 +53,7 @@ public abstract class Benchmark {
                     }
                 }
                 case "onlyJavaSeq" -> option = Option.JAVA_SEQ_ONLY;
+                case "onlyJavaPar" -> option = Option.JAVA_PAR_ONLY;
                 case "onlyJava" -> option = Option.JAVA_ONLY;
                 case "onlyTornadoVM" -> option = Option.TORNADO_ONLY;
             }

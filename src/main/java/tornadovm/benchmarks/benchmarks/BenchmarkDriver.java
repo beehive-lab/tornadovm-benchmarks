@@ -153,43 +153,45 @@ public abstract class BenchmarkDriver extends Benchmark {
         System.out.println();
 
         // ── 1. Sequential ────────────────────────────────────────────────────────
-        timers.add(new ArrayList<>());
-        headerTable.append("sequential");
+        if (option != Option.JAVA_PAR_ONLY) {
+            timers.add(new ArrayList<>());
+            headerTable.append("sequential");
 
-        if (option == Option.TORNADO_ONLY) {
-            // Run once for the reference result used in validation; no warmup needed.
-            resetOutputs();
-            long start = System.nanoTime();
-            computeSequential();
-            long end = System.nanoTime();
-            timers.getLast().add(end - start);
-            // No summary line — this is purely a reference run, not a performance target.
-        } else {
-            System.out.println(Config.Colours.CYAN
-                    + "[Sequential] Warming up (" + Config.WARMUP_RUNS + " iters)..."
-                    + Config.Colours.RESET);
-            for (int w = 0; w < Config.WARMUP_RUNS; w++) {
-                resetOutputs();
-                computeSequential();
-            }
-
-            System.out.println(Config.Colours.CYAN
-                    + "[Sequential] Measuring (" + Config.RUNS + " iters)..."
-                    + Config.Colours.RESET);
-            for (int i = 0; i < Config.RUNS; i++) {
+            if (option == Option.TORNADO_ONLY) {
+                // Run once for the reference result used in validation; no warmup needed.
                 resetOutputs();
                 long start = System.nanoTime();
                 computeSequential();
                 long end = System.nanoTime();
                 timers.getLast().add(end - start);
-                if (Config.VERBOSE) {
-                    System.out.printf("  [sequential] iter %3d: %,.3f ms%n", i, (end - start) * 1E-6);
+                // No summary line — this is purely a reference run, not a performance target.
+            } else {
+                System.out.println(Config.Colours.CYAN
+                        + "[Sequential] Warming up (" + Config.WARMUP_RUNS + " iters)..."
+                        + Config.Colours.RESET);
+                for (int w = 0; w < Config.WARMUP_RUNS; w++) {
+                    resetOutputs();
+                    computeSequential();
                 }
+
+                System.out.println(Config.Colours.CYAN
+                        + "[Sequential] Measuring (" + Config.RUNS + " iters)..."
+                        + Config.Colours.RESET);
+                for (int i = 0; i < Config.RUNS; i++) {
+                    resetOutputs();
+                    long start = System.nanoTime();
+                    computeSequential();
+                    long end = System.nanoTime();
+                    timers.getLast().add(end - start);
+                    if (Config.VERBOSE) {
+                        System.out.printf("  [sequential] iter %3d: %,.3f ms%n", i, (end - start) * 1E-6);
+                    }
+                }
+                printBackendSummary("Sequential", timers.getLast());
             }
-            printBackendSummary("Sequential", timers.getLast());
         }
 
-        if (option == Option.ALL || option == Option.JAVA_ONLY) {
+        if (option == Option.ALL || option == Option.JAVA_ONLY || option == Option.JAVA_PAR_ONLY) {
 
             // ── 2. Parallel Streams ──────────────────────────────────────────────
             timers.add(new ArrayList<>());

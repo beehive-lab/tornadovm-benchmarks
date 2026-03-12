@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, APT Group, Department of Computer Science,
+ * Copyright (c) 2025-2026, APT Group, Department of Computer Science,
  * The University of Manchester.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ package tornadovm.benchmarks.utils;
 
 public enum Option {
     JAVA_SEQ_ONLY,
+    JAVA_PAR_ONLY,
     JAVA_ONLY,
     TORNADO_ONLY,
     ALL
